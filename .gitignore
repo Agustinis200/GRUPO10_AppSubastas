@@ -1,0 +1,23 @@
+# Node
+node_modules/
+
+# Expo
+.expo/
+dist/
+
+# Java
+target/
+*.class
+
+# VSCode
+.vscode/
+
+# Env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
