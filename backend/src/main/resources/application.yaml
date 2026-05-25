@@ -4,7 +4,7 @@ spring:
 
   datasource:
     url: jdbc:sqlserver://localhost:1433;databaseName=subastas_db;encrypt=true;trustServerCertificate=true
-    username: springuser
+    username: userSubastas
     password: 123456
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
@@ -20,5 +20,4 @@ spring:
         format_sql: true
 
 server:
-  address: 192.168.1.34
   port: 8080
