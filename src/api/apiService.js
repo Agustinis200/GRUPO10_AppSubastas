@@ -14,11 +14,162 @@ let mockUsers = [
       estado: 'activo',
       admitido: 'si',
       categoria: 'comun',
+      cargo: 'Postor'
+    }
+  },
+  {
+    email: 'revisor@subastas.com',
+    password: '123456',
+    profile: {
+      identificador: 1,
+      documento: '11111111',
+      nombre: 'Empleado Revisor',
+      direccion: 'Calle Falsa 123',
+      estado: 'activo',
+      admitido: 'si',
+      categoria: 'comun',
+      cargo: 'Revisor Técnico'
     }
   }
 ];
 
 let preRegisteredEmails = new Set(['juan@mail.com']);
+
+let mockMyProducts = [];
+
+let mockPaymentMethods = [
+  { identificador: 1, cliente: 3, tipo: 'tarjeta', proveedor: 'Visa', mascara: '**** **** **** 4242', estado: 'activo' }
+];
+
+let mockFines = [
+  { identificador: 1, cliente: 3, descripcion: 'Falta de pago en Subasta Rolex', monto: 1500, estado: 'pendiente', fechacreacion: new Date().toISOString() }
+];
+
+let mockNotifications = [
+  { identificador: 1, cliente: 3, titulo: 'Bienvenido', mensaje: '¡Bienvenido a PujaYa! Tu cuenta ha sido creada y verificada.', leido: 'no', fechacreacion: new Date().toISOString() }
+];
+
+let mockPaises = [
+  { numero: 32, nombre: 'Argentina', nombreCorto: 'ARG', capital: 'Buenos Aires', nacionalidad: 'Argentina', idiomas: 'Español' },
+  { numero: 76, nombre: 'Brasil', nombreCorto: 'BRA', capital: 'Brasilia', nacionalidad: 'Brasileña', idiomas: 'Portugués' },
+  { numero: 152, nombre: 'Chile', nombreCorto: 'CHL', capital: 'Santiago', nacionalidad: 'Chilena', idiomas: 'Español' },
+  { numero: 170, nombre: 'Colombia', nombreCorto: 'COL', capital: 'Bogotá', nacionalidad: 'Colombiana', idiomas: 'Español' },
+  { numero: 858, nombre: 'Uruguay', nombreCorto: 'URY', capital: 'Montevideo', nacionalidad: 'Uruguaya', idiomas: 'Español' },
+  { numero: 604, nombre: 'Perú', nombreCorto: 'PER', capital: 'Lima', nacionalidad: 'Peruana', idiomas: 'Español' },
+  { numero: 840, nombre: 'Estados Unidos', nombreCorto: 'USA', capital: 'Washington D.C.', nacionalidad: 'Estadounidense', idiomas: 'Inglés' }
+];
+
+// Custom Base64 & Hex Conversion utilities for Bytea / Varbinary
+const uint8ArrayToBase64 = (uint8Array) => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  const len = uint8Array.length;
+  for (let i = 0; i < len; i += 3) {
+    const b1 = uint8Array[i];
+    const b2 = i + 1 < len ? uint8Array[i + 1] : NaN;
+    const b3 = i + 2 < len ? uint8Array[i + 2] : NaN;
+    
+    const enc1 = b1 >> 2;
+    const enc2 = ((b1 & 3) << 4) | (isNaN(b2) ? 0 : b2 >> 4);
+    const enc3 = isNaN(b2) ? 64 : ((b2 & 15) << 2) | (isNaN(b3) ? 0 : b3 >> 6);
+    const enc4 = isNaN(b3) ? 64 : b3 & 63;
+    
+    result += chars.charAt(enc1) + chars.charAt(enc2) +
+              (enc3 === 64 ? '=' : chars.charAt(enc3)) +
+              (enc4 === 64 ? '=' : chars.charAt(enc4));
+  }
+  return result;
+};
+
+const hexToBase64 = (hexStr) => {
+  if (!hexStr) return '';
+  let cleanHex = hexStr;
+  if (hexStr.startsWith('\\x') || hexStr.startsWith('0x')) {
+    cleanHex = hexStr.slice(2);
+  }
+  if (!cleanHex) return '';
+  const matched = cleanHex.match(/.{1,2}/g);
+  if (!matched) return '';
+  const bytes = new Uint8Array(matched.map(byte => parseInt(byte, 16)));
+  return uint8ArrayToBase64(bytes);
+};
+
+const base64ToHexStr = (base64) => {
+  if (!base64) return null;
+  const arrayBuffer = base64ToArrayBuffer(base64);
+  const bytes = new Uint8Array(arrayBuffer);
+  let hex = '\\x';
+  for (let i = 0; i < bytes.length; i++) {
+    const val = bytes[i].toString(16);
+    hex += val.length === 1 ? '0' + val : val;
+  }
+  return hex;
+};
+
+const hexToUtf8 = (hexStr) => {
+  if (!hexStr) return '';
+  let cleanHex = hexStr;
+  if (hexStr.startsWith('\\x') || hexStr.startsWith('0x')) {
+    cleanHex = hexStr.slice(2);
+  }
+  let str = '';
+  for (let i = 0; i < cleanHex.length; i += 2) {
+    str += String.fromCharCode(parseInt(cleanHex.substr(i, 2), 16));
+  }
+  return str;
+};
+
+const parseLegacyBytea = (rawPhoto) => {
+  if (!rawPhoto || typeof rawPhoto !== 'string') return null;
+  
+  let decodedText = '';
+  if (rawPhoto.startsWith('\\x') || rawPhoto.startsWith('0x')) {
+    decodedText = hexToUtf8(rawPhoto);
+  } else {
+    decodedText = rawPhoto;
+  }
+  
+  decodedText = decodedText.trim();
+  
+  if (decodedText.startsWith('{') && decodedText.endsWith('}')) {
+    try {
+      const obj = JSON.parse(decodedText);
+      
+      if (obj.type === 'Buffer' && Array.isArray(obj.data)) {
+        let asciiString = '';
+        for (let i = 0; i < obj.data.length; i++) {
+          asciiString += String.fromCharCode(obj.data[i]);
+        }
+        if (asciiString.startsWith('{') && asciiString.endsWith('}')) {
+          const byteObj = JSON.parse(asciiString);
+          const keys = Object.keys(byteObj).map(Number).sort((a, b) => a - b);
+          const bytes = new Uint8Array(keys.length);
+          for (let i = 0; i < keys.length; i++) {
+            bytes[i] = byteObj[keys[i]];
+          }
+          return 'data:image/jpeg;base64,' + uint8ArrayToBase64(bytes);
+        }
+      }
+      
+      if (obj['0'] !== undefined) {
+        const keys = Object.keys(obj).map(Number).sort((a, b) => a - b);
+        const bytes = new Uint8Array(keys.length);
+        for (let i = 0; i < keys.length; i++) {
+          bytes[i] = obj[keys[i]];
+        }
+        return 'data:image/jpeg;base64,' + uint8ArrayToBase64(bytes);
+      }
+    } catch (e) {
+      console.warn('[ApiService] Failed to parse legacy bytea JSON:', e.message);
+    }
+  }
+  
+  if (decodedText.startsWith('http') || decodedText.startsWith('data:image')) {
+    return decodedText;
+  }
+  
+  return 'data:image/jpeg;base64,' + hexToBase64(rawPhoto);
+};
 
 const isSupabaseConfigured = () => {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -95,7 +246,82 @@ const uploadDniPhoto = async (base64Data, subfolder, fileName) => {
   }
 };
 
+const hashPassword = (ascii) => {
+  if (!ascii) return '';
+  function rightRotate(value, amount) {
+    return (value >>> amount) | (value << (32 - amount));
+  }
+  
+  var mathPow = Math.pow;
+  var maxWord = mathPow(2, 32);
+  var lengthProperty = 'length';
+  var i, j;
+  var result = '';
+
+  var words = [];
+  var asciiLength = ascii[lengthProperty];
+  
+  var hash = [];
+  var k = [];
+  var primeCounter = 0;
+
+  var isComposite = {};
+  for (var candidate = 2; primeCounter < 64; candidate++) {
+    if (!isComposite[candidate]) {
+      for (i = 0; i < 313; i += candidate) {
+        isComposite[i] = 1;
+      }
+      hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+      k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+    }
+  }
+  
+  ascii += '\x80';
+  while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
+  for (i = 0; i < ascii[lengthProperty]; i++) {
+    j = ascii.charCodeAt(i);
+    if (j >> 8) return ''; // ASCII only
+    words[i >> 2] |= j << ((3 - i % 4) * 8);
+  }
+  words[words[lengthProperty]] = ((asciiLength * 8) / maxWord) | 0;
+  words[words[lengthProperty]] = (asciiLength * 8) | 0;
+  
+  for (j = 0; j < words[lengthProperty]; ) {
+    var w = words.slice(j, j += 16);
+    var oldHash = hash;
+    hash = hash.slice(0, 8);
+    
+    for (i = 0; i < 64; i++) {
+      var w15 = w[i - 15], w2 = w[i - 2];
+      
+      var s0 = rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3);
+      var s1 = rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10);
+      var ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
+      var maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
+      
+      var temp1 = hash[7] + (rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25)) + ch + k[i] + (w[i] = (i < 16 ? w[i] : (w[i - 16] + s0 + w[i - 7] + s1) | 0));
+      var temp2 = (rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22)) + maj;
+      
+      hash = [(temp1 + temp2) | 0].concat(hash);
+      hash[4] = (hash[4] + temp1) | 0;
+    }
+    
+    for (i = 0; i < 8; i++) {
+      hash[i] = (hash[i] + oldHash[i]) | 0;
+    }
+  }
+  
+  for (i = 0; i < 8; i++) {
+    for (j = 3; j + 1; j--) {
+      var b = (hash[i] >> (j * 8)) & 255;
+      result += ((b < 16) ? '0' : '') + b.toString(16);
+    }
+  }
+  return result;
+};
+
 export const apiService = {
+  parseLegacyBytea,
   // Check config status
   getConfigStatus() {
     return {
@@ -108,10 +334,11 @@ export const apiService = {
   async login(email, password) {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
+    const hashedPassword = hashPassword(cleanPassword);
 
     if (!isSupabaseConfigured()) {
       console.log('[ApiService] Running Mock login.');
-      const user = mockUsers.find(u => u.email === cleanEmail && u.password === cleanPassword);
+      const user = mockUsers.find(u => u.email === cleanEmail && (u.password === cleanPassword || u.password === hashedPassword));
       if (user) {
         const token = 'mock-jwt-token-for-' + cleanEmail;
         await AsyncStorage.setItem('userToken', token);
@@ -120,112 +347,9 @@ export const apiService = {
       throw new Error('Credenciales inválidas (Simulación Offline)');
     }
 
-    let authData = null;
-    let authError = null;
-
     try {
-      // 1. Attempt standard password login first
-      console.log('[ApiService] Attempting password sign in for:', cleanEmail);
-      const res = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword
-      });
-      authData = res.data;
-      authError = res.error;
-    } catch (err) {
-      authError = err;
-    }
-
-    // 2. If password login fails, attempt to treat the password as a temporary OTP token
-    if (authError) {
-      console.log('[ApiService] Password sign in failed. Attempting to treat password as OTP code...');
-      let otpData = null;
-      let otpError = null;
-
-      // Cascading OTP verification types: 'email', 'magiclink', 'signup'
-      try {
-        console.log('[ApiService] Trying OTP verification with type: email');
-        const res = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: cleanPassword,
-          type: 'email'
-        });
-        otpData = res.data;
-        otpError = res.error;
-      } catch (err) {
-        otpError = err;
-      }
-
-      if (otpError) {
-        console.log('[ApiService] OTP type:email failed, trying type:magiclink...');
-        try {
-          const res = await supabase.auth.verifyOtp({
-            email: cleanEmail,
-            token: cleanPassword,
-            type: 'magiclink'
-          });
-          if (!res.error) {
-            otpData = res.data;
-            otpError = null;
-          }
-        } catch (err) {
-          // ignore
-        }
-      }
-
-      if (otpError) {
-        console.log('[ApiService] OTP type:magiclink failed, trying type:signup...');
-        try {
-          const res = await supabase.auth.verifyOtp({
-            email: cleanEmail,
-            token: cleanPassword,
-            type: 'signup'
-          });
-          if (!res.error) {
-            otpData = res.data;
-            otpError = null;
-          }
-        } catch (err) {
-          // ignore
-        }
-      }
-
-      if (!otpError && otpData && otpData.session) {
-        console.log('[ApiService] OTP verified successfully! Setting permanent password to OTP code...');
-        authData = otpData;
-        authError = null;
-
-        try {
-          // Update the user's password to be this OTP code permanently
-          const { error: passUpdateErr } = await supabase.auth.updateUser({
-            password: cleanPassword
-          });
-          if (passUpdateErr) {
-            console.warn('[ApiService] Failed to update permanent password in Supabase Auth:', passUpdateErr.message);
-          }
-        } catch (err) {
-          console.warn('[ApiService] Failed to update permanent password in Supabase Auth:', err.message);
-        }
-      } else {
-        // If OTP verification also failed, throw the original authError or otpError
-        console.error('[ApiService] Both password login and OTP verification failed.');
-        throw new Error('Credenciales inválidas o código de correo incorrecto/expirado.');
-      }
-    }
-
-    try {
-      // 3. Make sure the corresponding profile is updated to 'activo' in PostgreSQL
-      const { error: updateErr } = await supabase
-        .from('personas')
-        .update({ estado: 'activo' })
-        .eq('email', cleanEmail);
-
-      if (updateErr) {
-        console.warn('[ApiService] Failed to update persona status to active:', updateErr.message);
-      }
-
-      // 4. Query corresponding profile from 'personas' join with 'clientes'
-      let { data: person, error: personError } = await supabase
+      // Direct query from database personas join with clientes
+      const { data: person, error: personError } = await supabase
         .from('personas')
         .select(`
           identificador,
@@ -234,6 +358,7 @@ export const apiService = {
           direccion,
           estado,
           email,
+          passwordhash,
           clientes (
             admitido,
             categoria
@@ -243,53 +368,36 @@ export const apiService = {
         .single();
 
       if (personError || !person) {
-        console.log('[ApiService] Persona profile not found for authenticated user. Auto-creating...');
-        const tempDocument = 'AUTO-' + Math.floor(Math.random() * 90000000 + 10000000);
-        const tempName = cleanEmail.split('@')[0];
-
-        const { data: newPerson, error: createPersonErr } = await supabase
-          .from('personas')
-          .insert({
-            documento: tempDocument,
-            nombre: tempName,
-            direccion: 'Dirección no especificada',
-            estado: 'activo',
-            email: cleanEmail
-          })
-          .select()
-          .single();
-
-        if (createPersonErr) {
-          console.error('[ApiService] Failed to auto-create persona profile:', createPersonErr.message);
-          throw new Error('Usuario autenticado pero no posee perfil en tabla personas y falló la creación automática.');
+        if (personError) {
+          console.warn('[ApiService] Error querying persona from DB during login:', personError.message, personError);
         }
+        throw new Error('El correo electrónico ingresado no está registrado.');
+      }
 
-        const { error: clientErr } = await supabase
-          .from('clientes')
-          .insert({
-            identificador: newPerson.identificador,
-            numeropais: null,
-            admitido: 'si',
-            categoria: 'comun',
-            verificador: 1
-          });
+      // Check account approval
+      const clientInfo = person.clientes && person.clientes.length > 0 ? person.clientes[0] : person.clientes;
+      const isApproved = person.estado === 'activo' && clientInfo?.admitido === 'si';
+      
+      // Special check: employees (revisors) might not have a client profile, but they are 'activo'
+      const { data: employee } = await supabase
+        .from('empleados')
+        .select('cargo')
+        .eq('identificador', person.identificador)
+        .single();
 
-        if (clientErr) {
-          console.error('[ApiService] Failed to auto-create client profile:', clientErr.message);
-        }
+      if (!isApproved && !employee) {
+        throw new Error('Tu cuenta se encuentra bajo revisión de nuestro equipo técnico.');
+      }
 
-        person = {
-          ...newPerson,
-          clientes: {
-            admitido: 'si',
-            categoria: 'comun'
-          }
-        };
+      // Check password matching (supports plain text and SHA-256 hash)
+      if (!person.passwordhash || (person.passwordhash !== cleanPassword && person.passwordhash !== hashedPassword)) {
+        throw new Error('Contraseña incorrecta.');
       }
 
       // Save token to Storage for session consistency
-      await AsyncStorage.setItem('userToken', authData.session.access_token);
-      return { token: authData.session.access_token };
+      const sessionToken = 'session-token-for-' + person.identificador;
+      await AsyncStorage.setItem('userToken', sessionToken);
+      return { token: sessionToken };
     } catch (error) {
       console.error('[ApiService] Login processing failed:', error.message);
       throw new Error(error.message || 'Error al iniciar sesión');
@@ -318,21 +426,8 @@ export const apiService = {
         
         if (emailMatch) {
           if (emailMatch.estado === 'inactivo') {
-            // Re-trigger OTP verification mail
-            const { error: otpErr } = await supabase.auth.signInWithOtp({
-              email: cleanEmail,
-              options: {
-                shouldCreateUser: true
-              }
-            });
-
-            if (otpErr) {
-              console.warn('[ApiService] OTP retry warning:', otpErr.message);
-              throw new Error('No se pudo reenviar el correo de verificación: ' + otpErr.message);
-            }
-
             return { 
-              message: 'Ya existe una solicitud de registro pendiente para este correo. Te hemos reenviado el código de verificación de 6 dígitos.' 
+              message: 'Ya existe una solicitud de registro pendiente para este correo. Por favor, espera a que el revisor técnico apruebe tu cuenta.' 
             };
           } else {
             throw new Error('Ya existe un perfil activo con este correo electrónico.');
@@ -370,68 +465,18 @@ export const apiService = {
           nombre: userData.nombre,
           direccion: userData.direccion,
           estado: 'inactivo',
-          foto: combinedUrls,
-          email: cleanEmail
+          foto: userData.foto_selfie ? base64ToHexStr(userData.foto_selfie) : null,
+          fotos_documento: combinedUrls,
+          email: cleanEmail,
+          numeropais: userData.pais_id || null
         })
         .select()
         .single();
 
       if (personErr) throw personErr;
 
-      // 3. Insert into 'clientes'
-      // Note: verificador defaults to 1 (assigned employee ID)
-      const { error: clientErr } = await supabase
-        .from('clientes')
-        .insert({
-          identificador: person.identificador,
-          numeropais: null,
-          admitido: 'no',
-          categoria: 'comun',
-          verificador: 1
-        });
-
-      if (clientErr) throw clientErr;
-
-      // 4. Trigger Supabase OTP authentication email
-      const { error: otpErr } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: true
-        }
-      });
-
-      if (otpErr) {
-        console.warn('[ApiService] OTP send warning:', otpErr.message);
-
-        // Fallback for development if rate limited by Supabase free tier SMTP
-        const errLower = otpErr.message.toLowerCase();
-        if (errLower.includes('rate limit') || errLower.includes('limit exceeded') || errLower.includes('too many requests')) {
-          console.log('[ApiService] Rate limited by Supabase. Creating user directly with fallback password "123456" for testing...');
-          const { error: signUpErr } = await supabase.auth.signUp({
-            email: cleanEmail,
-            password: '123456'
-          });
-
-          if (!signUpErr) {
-            // Also automatically set their persona state to active since we bypass verification
-            await supabase
-              .from('personas')
-              .update({ estado: 'activo' })
-              .eq('email', cleanEmail);
-
-            return { 
-              message: 'El límite de correos de Supabase se ha excedido. Tu cuenta ha sido creada automáticamente con la contraseña temporal: 123456' 
-            };
-          } else {
-            console.error('[ApiService] Fallback signup also failed:', signUpErr.message);
-            throw new Error('Límite de envío de correos excedido en Supabase y falló el registro alternativo: ' + signUpErr.message);
-          }
-        }
-
-        throw new Error('Pre-registro completado pero no se pudo enviar el correo de verificación: ' + otpErr.message);
-      }
-
-      return { message: 'Solicitud de registro creada. Te hemos enviado un código de verificación de 6 dígitos a tu correo.' };
+      // 4. Return success response (no OTP token generated, no clientes row created yet)
+      return { message: 'Solicitud de registro creada con éxito. Tu cuenta está en revisión. Recibirás tu contraseña predefinida por correo una vez aprobada.' };
     } catch (error) {
       console.error('[ApiService] Pre-registration error:', error.message);
       throw new Error(error.message || 'Error en pre-registro');
@@ -563,20 +608,29 @@ export const apiService = {
     }
 
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        password: password
-      });
+      // Try to update Supabase Auth user if there is a session
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData && sessionData.session) {
+          const { error } = await supabase.auth.updateUser({
+            password: password
+          });
+          if (error) {
+            console.warn('[ApiService] Supabase auth updateUser failed:', error.message);
+          }
+        }
+      } catch (authErr) {
+        console.warn('[ApiService] Supabase auth session check failed:', authErr.message);
+      }
 
-      if (error) throw error;
-
-      // Make sure persona status is 'activo' in PostgreSQL
+      // Make sure persona status is 'activo' and update passwordhash in PostgreSQL (using hashPassword)
       const { error: updateErr } = await supabase
         .from('personas')
-        .update({ estado: 'activo' })
+        .update({ estado: 'activo', passwordhash: hashPassword(password) })
         .eq('email', cleanEmail);
 
       if (updateErr) {
-        console.warn('[ApiService] Failed to activate persona on password update:', updateErr.message);
+        console.warn('[ApiService] Failed to activate persona and update passwordhash on password update:', updateErr.message);
       }
 
       // Also ensure it is stored in AsyncStorage if a session exists
@@ -594,10 +648,20 @@ export const apiService = {
 
   // Get active user profile
   async getProfile() {
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) throw new Error('No hay sesión activa.');
+
+    let email = null;
+    let clientId = null;
+
+    if (token.startsWith('mock-jwt-token-for-')) {
+      email = token.replace('mock-jwt-token-for-', '');
+    } else if (token.startsWith('session-token-for-')) {
+      clientId = parseInt(token.replace('session-token-for-', ''), 10);
+    }
+
     if (!isSupabaseConfigured()) {
-      const token = await AsyncStorage.getItem('userToken');
-      if (token && token.startsWith('mock-jwt-token-for-')) {
-        const email = token.replace('mock-jwt-token-for-', '');
+      if (email) {
         const user = mockUsers.find(u => u.email === email);
         if (user) return user.profile;
       }
@@ -605,75 +669,43 @@ export const apiService = {
     }
 
     try {
-      // Get current auth user session
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No hay usuario autenticado en la sesión de Supabase.');
+      let query = supabase.from('personas').select(`
+        identificador,
+        documento,
+        nombre,
+        direccion,
+        estado,
+        email,
+        foto,
+        clientes (
+          admitido,
+          categoria
+        ),
+        empleados (
+          cargo
+        )
+      `);
 
-      const cleanEmail = user.email.trim().toLowerCase();
+      if (clientId) {
+        query = query.eq('identificador', clientId);
+      } else if (email) {
+        query = query.eq('email', email);
+      } else {
+        throw new Error('Token de sesión inválido.');
+      }
 
-      // Fetch detail profile from 'personas' join with 'clientes'
-      let { data: person, error: personError } = await supabase
-        .from('personas')
-        .select(`
-          identificador,
-          documento,
-          nombre,
-          direccion,
-          estado,
-          email,
-          clientes (
-            admitido,
-            categoria
-          )
-        `)
-        .eq('email', cleanEmail)
-        .single();
-
+      const { data: person, error: personError } = await query.single();
       if (personError || !person) {
-        console.log('[ApiService] Persona profile not found in getProfile. Auto-creating...');
-        const tempDocument = 'AUTO-' + Math.floor(Math.random() * 90000000 + 10000000);
-        const tempName = cleanEmail.split('@')[0];
-
-        const { data: newPerson, error: createPersonErr } = await supabase
-          .from('personas')
-          .insert({
-            documento: tempDocument,
-            nombre: tempName,
-            direccion: 'Dirección no especificada',
-            estado: 'activo',
-            email: cleanEmail
-          })
-          .select()
-          .single();
-
-        if (createPersonErr) {
-          throw new Error('Perfil no encontrado y falló la creación automática.');
-        }
-
-        const { error: clientErr } = await supabase
-          .from('clientes')
-          .insert({
-            identificador: newPerson.identificador,
-            numeropais: null,
-            admitido: 'si',
-            categoria: 'comun',
-            verificador: 1
-          });
-
-        if (clientErr) {
-          console.error('[ApiService] Failed to auto-create client profile:', clientErr.message);
-        }
-
-        person = {
-          ...newPerson,
-          clientes: {
-            admitido: 'si',
-            categoria: 'comun'
-          }
-        };
+        throw new Error('Perfil de usuario no encontrado en la base de datos.');
       }
 
       const clientInfo = person.clientes && person.clientes.length > 0 ? person.clientes[0] : person.clientes;
+      const employeeInfo = person.empleados && person.empleados.length > 0 ? person.empleados[0] : person.empleados;
+
+      let selfieBase64 = null;
+      if (person.foto) {
+        selfieBase64 = parseLegacyBytea(person.foto);
+      }
 
       return {
         identificador: person.identificador,
@@ -681,8 +713,11 @@ export const apiService = {
         nombre: person.nombre,
         direccion: person.direccion,
         estado: person.estado,
+        email: person.email,
+        foto: selfieBase64,
         admitido: clientInfo?.admitido || 'no',
-        categoria: clientInfo?.categoria || 'comun'
+        categoria: clientInfo?.categoria || 'comun',
+        cargo: employeeInfo?.cargo || null
       };
     } catch (error) {
       console.error('[ApiService] getProfile error:', error.message);
@@ -694,24 +729,71 @@ export const apiService = {
   async uploadProduct(productData) {
     if (!isSupabaseConfigured()) {
       console.log('[ApiService] Running Mock uploadProduct.');
+      
+      const newMockProdId = Math.floor(Math.random() * 1000) + 200;
+      const newMockProduct = {
+        identificador: newMockProdId,
+        titulo: productData.titulo,
+        descripcion: productData.descripcion,
+        fecha: new Date().toISOString().split('T')[0],
+        disponible: 'si',
+        foto: productData.fotos && productData.fotos.length > 0 ? productData.fotos[0] : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80'
+      };
+      
+      // Save to user products mock memory
+      mockMyProducts.push(newMockProduct);
+
+      // Create a mock auction as well
+      const newMockAuction = {
+        identificador: Math.floor(Math.random() * 1000) + 50,
+        fecha: new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        hora: '12:00:00',
+        estado: 'abierta',
+        en_vivo: true,
+        tiempo_restante_segundos: 86400 * 10,
+        precio_actual: Number(productData.precioBase),
+        categoria: 'comun',
+        producto: {
+          identificador: newMockProdId,
+          titulo: productData.titulo,
+          descripcion: productData.descripcion,
+          image_url: productData.fotos && productData.fotos.length > 0 ? productData.fotos[0] : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80',
+          seller_name: 'Yo (Postor)',
+          historia: {
+            artista: 'N/A',
+            anio: 'N/A',
+            contexto: productData.informacionHistorica || 'Sin información histórica.'
+          }
+        },
+        bid_count: 0,
+        highest_bidder: 'Nadie',
+        ends_at: new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString()
+      };
+      
+      // We will push this to mockAuctions which is exposed by supabaseService
+      try {
+        const { supabaseService } = require('./supabaseService');
+        if (supabaseService && supabaseService.mockAuctions) {
+          supabaseService.mockAuctions.push(newMockAuction);
+        }
+      } catch (err) {
+        // ignore
+      }
+
       return { success: true, message: 'Producto subido con éxito (Modo Mock).' };
     }
 
     try {
-      // 1. Get current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuario no autenticado.');
+      // 1. Get current authenticated user from local session token
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('Usuario no autenticado.');
 
-      // 2. Fetch the persona's identificador using email
-      const { data: person } = await supabase
-        .from('personas')
-        .select('identificador')
-        .eq('email', user.email.trim().toLowerCase())
-        .single();
+      let userId = null;
+      if (token.startsWith('session-token-for-')) {
+        userId = parseInt(token.replace('session-token-for-', ''), 10);
+      }
 
-      if (!person) throw new Error('No se encontró el perfil de la persona.');
-
-      const userId = person.identificador;
+      if (!userId) throw new Error('Usuario no autenticado o sesión inválida.');
 
       // 3. Ensure the user exists in 'duenios' table
       const { data: duenio } = await supabase
@@ -735,6 +817,12 @@ export const apiService = {
         if (duenioErr) throw duenioErr;
       }
 
+      // 3b. Upload provenance document if provided
+      let docUrl = null;
+      if (productData.documentoOrigenBase64) {
+        docUrl = await uploadDniPhoto(productData.documentoOrigenBase64, 'documentos_origen', `doc_${Date.now()}.jpg`);
+      }
+
       // 4. Create the product
       const { data: newProduct, error: productErr } = await supabase
         .from('productos')
@@ -744,27 +832,31 @@ export const apiService = {
           descripcioncatalogo: productData.descripcion,
           descripcioncompleta: productData.titulo,
           revisor: 1, // default employee revisor
-          duenio: userId
+          duenio: userId,
+          informacion_historica: productData.informacionHistorica || null,
+          documento_origen: docUrl
         })
         .select()
         .single();
 
       if (productErr) throw productErr;
 
-      // 5. Upload photo and insert into 'fotos' table
-      let photoUrl = 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80'; // fallback default
-      if (productData.fotoBase64) {
-        photoUrl = await uploadProductPhoto(productData.fotoBase64, newProduct.identificador);
-      }
-
-      const { error: fotoErr } = await supabase
-        .from('fotos')
-        .insert({
-          producto: newProduct.identificador,
-          foto: photoUrl
+      // 5. Insert each photo as binary bytea into public.fotos
+      if (productData.fotos && productData.fotos.length > 0) {
+        const photoInserts = productData.fotos.map(base64Str => {
+          return supabase
+            .from('fotos')
+            .insert({
+              producto: newProduct.identificador,
+              foto: base64ToHexStr(base64Str)
+            });
         });
-
-      if (fotoErr) throw fotoErr;
+        const results = await Promise.all(photoInserts);
+        const errResult = results.find(r => r.error);
+        if (errResult) {
+          throw errResult.error;
+        }
+      }
 
       // 6. Automatically link the product to the first catalog so it appears in auctions list
       const { data: catalogData } = await supabase
@@ -799,20 +891,19 @@ export const apiService = {
   // Get products uploaded by the current user
   async getUserProducts() {
     if (!isSupabaseConfigured()) {
-      return [];
+      return mockMyProducts;
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuario no autenticado.');
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('Usuario no autenticado.');
 
-      const { data: person } = await supabase
-        .from('personas')
-        .select('identificador')
-        .eq('email', user.email.trim().toLowerCase())
-        .single();
+      let userId = null;
+      if (token.startsWith('session-token-for-')) {
+        userId = parseInt(token.replace('session-token-for-', ''), 10);
+      }
 
-      if (!person) return [];
+      if (!userId) return [];
 
       const { data, error } = await supabase
           .from('productos')
@@ -826,18 +917,24 @@ export const apiService = {
               foto
             )
           `)
-          .eq('duenio', person.identificador);
+          .eq('duenio', userId);
 
       if (error) throw error;
 
-      return (data || []).map(p => ({
-        identificador: p.identificador,
-        titulo: p.descripcioncompleta,
-        descripcion: p.descripcioncatalogo,
-        fecha: p.fecha,
-        disponible: p.disponible,
-        foto: p.fotos && p.fotos.length > 0 ? p.fotos[0].foto : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80'
-      }));
+      return (data || []).map(p => {
+        let finalFoto = 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80';
+        if (p.fotos && p.fotos.length > 0) {
+          finalFoto = parseLegacyBytea(p.fotos[0].foto) || finalFoto;
+        }
+        return {
+          identificador: p.identificador,
+          titulo: p.descripcioncompleta,
+          descripcion: p.descripcioncatalogo,
+          fecha: p.fecha,
+          disponible: p.disponible,
+          foto: finalFoto
+        };
+      });
     } catch (error) {
       console.error('[ApiService] getUserProducts error:', error.message);
       return [];
@@ -849,6 +946,476 @@ export const apiService = {
     await AsyncStorage.removeItem('userToken');
     if (isSupabaseConfigured()) {
       await supabase.auth.signOut();
+    }
+  },
+
+  // --- NEW ADDED APIS FOR PUJAYA ---
+
+  async getPaises() {
+    if (!isSupabaseConfigured()) {
+      return mockPaises;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('paises')
+        .select('*')
+        .order('nombre', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[ApiService] Error fetching paises:', err.message);
+      return mockPaises;
+    }
+  },
+
+  async getPaymentMethods(userId) {
+    if (!isSupabaseConfigured()) {
+      return mockPaymentMethods.filter(m => m.cliente === userId);
+    }
+    try {
+      const { data, error } = await supabase
+        .from('mediosdepago')
+        .select('*')
+        .eq('cliente', userId)
+        .eq('estado', 'activo');
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[ApiService] Error fetching payment methods:', err.message);
+      return [];
+    }
+  },
+
+  async addPaymentMethod(userId, payload) {
+    if (!isSupabaseConfigured()) {
+      const newMethod = {
+        identificador: Math.floor(Math.random() * 1000) + 10,
+        cliente: userId,
+        tipo: payload.tipo,
+        proveedor: payload.proveedor,
+        mascara: payload.mascara,
+        estado: 'activo'
+      };
+      mockPaymentMethods.push(newMethod);
+      return { success: true, method: newMethod };
+    }
+    try {
+      const { data, error } = await supabase
+        .from('mediosdepago')
+        .insert({
+          cliente: userId,
+          tipo: payload.tipo,
+          proveedor: payload.proveedor,
+          mascara: payload.mascara,
+          estado: 'activo'
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, method: data };
+    } catch (err) {
+      console.error('[ApiService] Error adding payment method:', err.message);
+      throw err;
+    }
+  },
+
+  async getUserFines(userId) {
+    if (!isSupabaseConfigured()) {
+      return mockFines.filter(f => f.cliente === userId);
+    }
+    try {
+      const { data, error } = await supabase
+        .from('multas')
+        .select('*')
+        .eq('cliente', userId)
+        .order('fechacreacion', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[ApiService] Error fetching user fines:', err.message);
+      return [];
+    }
+  },
+
+  async payFine(fineId) {
+    if (!isSupabaseConfigured()) {
+      const fine = mockFines.find(f => f.identificador === fineId);
+      if (fine) {
+        fine.estado = 'pagada';
+      }
+      return { success: true };
+    }
+    try {
+      const { error } = await supabase
+        .from('multas')
+        .update({ estado: 'pagada' })
+        .eq('identificador', fineId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error('[ApiService] Error paying fine:', err.message);
+      throw err;
+    }
+  },
+
+  async getUserNotifications(userId) {
+    if (!isSupabaseConfigured()) {
+      return mockNotifications.filter(n => n.cliente === userId);
+    }
+    try {
+      const { data, error } = await supabase
+        .from('notificaciones')
+        .select('*')
+        .eq('cliente', userId)
+        .order('fechacreacion', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[ApiService] Error fetching notifications:', err.message);
+      return [];
+    }
+  },
+
+  async markNotificationAsRead(notificationId) {
+    if (!isSupabaseConfigured()) {
+      const notification = mockNotifications.find(n => n.identificador === notificationId);
+      if (notification) {
+        notification.leido = 'si';
+      }
+      return { success: true };
+    }
+    try {
+      const { error } = await supabase
+        .from('notificaciones')
+        .update({ leido: 'si' })
+        .eq('identificador', notificationId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error('[ApiService] Error marking notification read:', err.message);
+      return { error: err.message };
+    }
+  },
+
+  async getPendingClients() {
+    if (!isSupabaseConfigured()) {
+      return mockUsers
+        .filter(u => u.profile && u.profile.admitido === 'no')
+        .map(u => ({
+          identificador: u.profile.identificador,
+          documento: u.profile.documento,
+          nombre: u.profile.nombre,
+          direccion: u.profile.direccion,
+          estado: u.profile.estado,
+          email: u.email,
+          foto: null, // no selfie URL in mock
+          fotos_documento: 'https://images.unsplash.com/photo-1554774853-aae0a22c8aa4,https://images.unsplash.com/photo-1554774853-aae0a22c8aa4'
+        }));
+    }
+    try {
+      const { data, error } = await supabase
+        .from('personas')
+        .select(`
+          identificador,
+          documento,
+          nombre,
+          direccion,
+          estado,
+          email,
+          foto,
+          fotos_documento
+        `)
+        .eq('estado', 'inactivo');
+      
+      if (error) throw error;
+
+      return (data || []).map(p => {
+        let selfieBase64 = null;
+        if (p.foto) {
+          selfieBase64 = parseLegacyBytea(p.foto);
+        }
+        return {
+          identificador: p.identificador,
+          documento: p.documento,
+          nombre: p.nombre,
+          direccion: p.direccion,
+          estado: p.estado,
+          email: p.email,
+          foto: selfieBase64,
+          fotos_documento: p.fotos_documento
+        };
+      });
+    } catch (err) {
+      console.error('[ApiService] Error getting pending clients:', err.message);
+      return [];
+    }
+  },
+
+  async approveClient(clientId, password) {
+    if (!isSupabaseConfigured()) {
+      const user = mockUsers.find(u => u.profile && u.profile.identificador === clientId);
+      if (user) {
+        user.profile.admitido = 'si';
+        user.profile.estado = 'activo';
+        user.password = password; // store password in mock user
+      }
+      return { success: true, emailSimulated: `Hola ${user?.profile?.nombre || 'Cliente'},\n\n¡Felicidades! Tu cuenta de PujaYa! ha sido aprobada por nuestro revisor técnico.\n\nTu contraseña predefinida de acceso es: ${password}\n\nYa puedes ingresar a la app.` };
+    }
+    try {
+      // 1. Get user name, email, and country first for the email log and clientes insert
+      const { data: persona, error: fetchErr } = await supabase
+        .from('personas')
+        .select('nombre, email, numeropais')
+        .eq('identificador', clientId)
+        .single();
+      
+      if (fetchErr) throw fetchErr;
+
+      // 2. Update personas table (estado to active, passwordhash to the pre-defined password hash)
+      const { error: personErr } = await supabase
+        .from('personas')
+        .update({ 
+          estado: 'activo',
+          passwordhash: hashPassword(password)
+        })
+        .eq('identificador', clientId);
+
+      if (personErr) throw personErr;
+
+      // 3. Insert into clientes table (admitido to 'si', category defaults to 'comun')
+      const { error: clientErr } = await supabase
+        .from('clientes')
+        .insert({ 
+          identificador: clientId,
+          numeropais: persona.numeropais || null,
+          admitido: 'si',
+          categoria: 'comun',
+          verificador: 1
+        });
+
+      if (clientErr) throw clientErr;
+
+      const emailContent = `SIMULACION ENVIO CORREO APROBACION:\nPara: ${persona.email}\nAsunto: Cuenta Aprobada - PujaYa!\n\nHola ${persona.nombre},\n\n¡Felicidades! Tu cuenta ha sido aprobada por nuestro revisor técnico.\n\nTu contraseña predefinida de acceso es: ${password}\n\nYa puedes ingresar a la app.`;
+      console.log(emailContent);
+
+      return { success: true, emailSimulated: emailContent };
+    } catch (err) {
+      console.error('[ApiService] Error approving client:', err.message);
+      throw err;
+    }
+  },
+
+  async rejectClient(clientId, reason) {
+    if (!isSupabaseConfigured()) {
+      const idx = mockUsers.findIndex(u => u.profile && u.profile.identificador === clientId);
+      let user = null;
+      if (idx !== -1) {
+        user = mockUsers[idx];
+        mockUsers.splice(idx, 1);
+      }
+      return { success: true, emailSimulated: `Hola ${user?.profile?.nombre || 'Cliente'},\n\nLamentamos informarte que tu solicitud de registro en PujaYa! ha sido rechazada por nuestro revisor técnico.\n\nMotivo del rechazo:\n${reason}\n\nSi deseas volver a registrarte, asegúrate de corregir los inconvenientes mencionados.` };
+    }
+
+    try {
+      // 1. Get user name, email, and documento first for the email log and storage cleanup
+      const { data: persona, error: fetchErr } = await supabase
+        .from('personas')
+        .select('nombre, email, documento')
+        .eq('identificador', clientId)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      // 2. Clean up files in Supabase Storage under the subfolder matching the DNI/documento
+      const subfolder = persona.documento.trim();
+      try {
+        const { data: fileList, error: listErr } = await supabase.storage
+          .from('dni-photos')
+          .list(subfolder);
+
+        if (!listErr && fileList && fileList.length > 0) {
+          const filesToRemove = fileList.map(f => `${subfolder}/${f.name}`);
+          const { error: removeErr } = await supabase.storage
+            .from('dni-photos')
+            .remove(filesToRemove);
+          if (removeErr) {
+            console.warn('[ApiService] Warning: Failed to clean up storage files on rejection:', removeErr.message);
+          }
+        }
+      } catch (storageErr) {
+        console.warn('[ApiService] Warning: Storage cleanup exception:', storageErr.message);
+      }
+
+      // 3. Delete from personas (which cascades to clientes)
+      const { error: deleteErr } = await supabase
+        .from('personas')
+        .delete()
+        .eq('identificador', clientId);
+
+      if (deleteErr) throw deleteErr;
+
+      const emailContent = `SIMULACION ENVIO CORREO RECHAZO:\nPara: ${persona.email}\nAsunto: Registro Rechazado - PujaYa!\n\nHola ${persona.nombre},\n\nLamentamos informarte que tu solicitud de registro en PujaYa! ha sido rechazada por nuestro revisor técnico.\n\nMotivo del rechazo:\n${reason}\n\nSi deseas volver a registrarte, asegúrate de corregir los inconvenientes mencionados.`;
+      console.log(emailContent);
+
+      return { success: true, emailSimulated: emailContent };
+    } catch (err) {
+      console.error('[ApiService] Error rejecting client:', err.message);
+      throw err;
+    }
+  },
+
+  async resetPasswordRequest(email) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isSupabaseConfigured()) {
+      return { success: true, message: 'Código enviado (Modo Mock). Usa el código 123456.' };
+    }
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: cleanEmail
+      });
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error('[ApiService] Reset password request error:', err.message);
+      throw err;
+    }
+  },
+
+  async resetPasswordConfirm(email, token, newPassword) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanToken = token.trim();
+    if (!isSupabaseConfigured()) {
+      const user = mockUsers.find(u => u.email === cleanEmail);
+      if (user) {
+        user.password = newPassword;
+      }
+      return { success: true };
+    }
+    try {
+      // Cascade verify OTP
+      let data = null;
+      let error = null;
+
+      try {
+        const res = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: cleanToken,
+          type: 'recovery'
+        });
+        data = res.data;
+        error = res.error;
+      } catch (err) {
+        error = err;
+      }
+
+      if (error) {
+        try {
+          const res = await supabase.auth.verifyOtp({
+            email: cleanEmail,
+            token: cleanToken,
+            type: 'email'
+          });
+          data = res.data;
+          error = res.error;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (error) throw error;
+
+      // Update password permanently in Supabase Auth if session exists
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData && sessionData.session) {
+          const { error: passErr } = await supabase.auth.updateUser({
+            password: newPassword
+          });
+          if (passErr) {
+            console.warn('[ApiService] Supabase auth updateUser failed during reset:', passErr.message);
+          }
+        }
+      } catch (authErr) {
+        console.warn('[ApiService] Supabase auth session check failed during reset:', authErr.message);
+      }
+
+      // Also update passwordhash in PostgreSQL personas table (using hashPassword)
+      const { error: dbErr } = await supabase
+        .from('personas')
+        .update({ passwordhash: hashPassword(newPassword) })
+        .eq('email', cleanEmail);
+
+      if (dbErr) {
+        console.warn('[ApiService] Failed to update PostgreSQL passwordhash during recovery:', dbErr.message);
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error('[ApiService] Reset password confirm error:', err.message);
+      throw err;
+    }
+  },
+
+  async changePassword(email, currentPassword, newPassword) {
+    const cleanEmail = email.trim().toLowerCase();
+    
+    if (!isSupabaseConfigured()) {
+      console.log('[ApiService] Running Mock changePassword.');
+      const user = mockUsers.find(u => u.email === cleanEmail);
+      if (!user) {
+        throw new Error('Usuario no encontrado.');
+      }
+      if (user.password !== currentPassword) {
+        throw new Error('La contraseña actual es incorrecta.');
+      }
+      user.password = newPassword;
+      return { success: true, message: 'Contraseña cambiada con éxito (Offline Mock).' };
+    }
+
+    try {
+      // 1. Verify current password by querying personas table
+      const { data: person, error: fetchErr } = await supabase
+        .from('personas')
+        .select('passwordhash')
+        .eq('email', cleanEmail)
+        .single();
+
+      if (fetchErr || !person) {
+        throw new Error('No se pudo verificar la información del usuario.');
+      }
+
+      const hashedCurrent = hashPassword(currentPassword);
+      if (person.passwordhash !== currentPassword && person.passwordhash !== hashedCurrent) {
+        throw new Error('La contraseña actual es incorrecta.');
+      }
+
+      // 2. Check if a Supabase Auth session exists. If so, update it.
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData && sessionData.session) {
+          const { error: authErr } = await supabase.auth.updateUser({
+            password: newPassword
+          });
+          if (authErr) {
+            console.warn('[ApiService] Failed to update Supabase Auth user:', authErr.message);
+          }
+        }
+      } catch (authSessionErr) {
+        console.warn('[ApiService] Auth session check failed or skipped:', authSessionErr.message);
+      }
+
+      // 3. Update passwordhash in PostgreSQL personas table (using hashPassword)
+      const { error: dbErr } = await supabase
+        .from('personas')
+        .update({ passwordhash: hashPassword(newPassword) })
+        .eq('email', cleanEmail);
+
+      if (dbErr) throw dbErr;
+
+      return { success: true, message: 'Contraseña cambiada con éxito.' };
+    } catch (err) {
+      console.error('[ApiService] changePassword error:', err.message);
+      throw new Error(err.message || 'Error al cambiar la contraseña.');
     }
   }
 };

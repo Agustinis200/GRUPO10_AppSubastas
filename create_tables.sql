@@ -46,10 +46,13 @@ create table if not exists public.personas(
 	nombre varchar(150) not null,
 	direccion varchar(250),
 	estado varchar(15) constraint chkEstado check (estado in ('activo', 'inactivo')),
-	foto text, -- Modificado a text para guardar la URL de Supabase Storage
+	foto bytea, -- Cambiado a bytea para guardar la selfie de perfil (varbinary max)
+    fotos_documento varchar(1000), -- Agregado para almacenar URLs de las fotos de los documentos
     email varchar(250) unique, -- Agregado para Login
     passwordHash varchar(250), -- Agregado para Login
-	constraint pk_personas primary key (identificador)
+    numeropais integer, -- Agregado para almacenar temporalmente el país de origen hasta ser aprobado
+	constraint pk_personas primary key (identificador),
+	constraint fk_personas_paises foreign key (numeropais) references public.paises (numero) ON DELETE SET NULL
 );
 
 create table if not exists public.empleados(
@@ -134,15 +137,18 @@ create table if not exists public.productos(
 	revisor integer not null,
 	duenio integer not null,
 	seguro varchar(30) null,
+	informacion_historica text,
+	documento_origen text,
 	constraint pk_productos primary key (identificador),
 	constraint fk_productos_empleados foreign key (revisor) references public.empleados(identificador) ON DELETE CASCADE,
-	constraint fk_productos_duenios foreign key (duenio) references public.duenios(identificador) ON DELETE CASCADE
+	constraint fk_productos_duenios foreign key (duenio) references public.duenios(identificador) ON DELETE CASCADE,
+	constraint fk_productos_seguros foreign key (seguro) references public.seguros(nroPoliza) ON DELETE SET NULL
 );
 
 create table if not exists public.fotos(
 	identificador integer generated always as identity,
 	producto integer not null,
-	foto text not null, -- Modificado a text para guardar URL
+	foto bytea not null, -- Cambiado a bytea para guardar la imagen como binario (varbinary max)
 	constraint pk_fotos primary key (identificador),
 	constraint fk_fotos_productos foreign key (producto) references public.productos(identificador) ON DELETE CASCADE
 );
@@ -206,16 +212,60 @@ create table if not exists public.registroDeSubasta(
 	constraint fk_registroDeSubasta_cliente foreign key (cliente) references public.clientes ON DELETE CASCADE
 );
 
+create table if not exists public.mediosdepago(
+	identificador integer generated always as identity,
+	cliente integer not null,
+	tipo varchar(30) constraint chkTipoMedio check (tipo in ('tarjeta', 'transferencia')),
+	proveedor varchar(100) not null,
+	mascara varchar(50) not null,
+	estado varchar(15) default 'activo',
+	constraint pk_mediosdepago primary key (identificador),
+	constraint fk_mediosdepago_clientes foreign key (cliente) references public.clientes (identificador) ON DELETE CASCADE
+);
+
+create table if not exists public.multas(
+	identificador integer generated always as identity,
+	cliente integer not null,
+	descripcion varchar(250) not null,
+	monto decimal(18,2) not null constraint chkMontoMulta check (monto > 0.01),
+	estado varchar(15) constraint chkEstadoMulta check (estado in ('pendiente', 'pagada')) default 'pendiente',
+	fechacreacion timestamp default now(),
+	constraint pk_multas primary key (identificador),
+	constraint fk_multas_clientes foreign key (cliente) references public.clientes (identificador) ON DELETE CASCADE
+);
+
+create table if not exists public.notificaciones(
+	identificador integer generated always as identity,
+	cliente integer not null,
+	titulo varchar(200) not null,
+	mensaje text not null,
+	leido varchar(2) constraint chkLeido check (leido in ('si', 'no')) default 'no',
+	fechacreacion timestamp default now(),
+	constraint pk_notificaciones primary key (identificador),
+	constraint fk_notificaciones_personas foreign key (cliente) references public.personas (identificador) ON DELETE CASCADE
+);
+
 -- ---------------------------------------------------------------------
 -- 2. INSERT DE DATOS MOCK / PRUEBA
 -- ---------------------------------------------------------------------
 
+-- Paises
+INSERT INTO public.paises (numero, nombre, nombreCorto, capital, nacionalidad, idiomas) VALUES
+(32, 'Argentina', 'ARG', 'Buenos Aires', 'Argentina', 'Español'),
+(76, 'Brasil', 'BRA', 'Brasilia', 'Brasileña', 'Portugués'),
+(152, 'Chile', 'CHL', 'Santiago', 'Chilena', 'Español'),
+(170, 'Colombia', 'COL', 'Bogotá', 'Colombiana', 'Español'),
+(858, 'Uruguay', 'URY', 'Montevideo', 'Uruguaya', 'Español'),
+(604, 'Perú', 'PER', 'Lima', 'Peruana', 'Español'),
+(840, 'Estados Unidos', 'USA', 'Washington D.C.', 'Estadounidense', 'Inglés')
+ON CONFLICT (numero) DO NOTHING;
+
 -- Subastas
 INSERT INTO public.subastas (fecha, hora, estado, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) 
 VALUES 
-('2026-06-15', '14:30:00', 'abierta', 'Hotel Hilton, Salón B', 150, 'no', 'si', 'oro'),
-('2026-06-20', '10:00:00', 'abierta', 'Subasta 100% Virtual', 500, 'no', 'no', 'comun'),
-('2026-06-25', '18:00:00', 'abierta', 'Depósito Central', 50, 'si', 'si', 'platino')
+(current_date + 12, '14:30:00', 'abierta', 'Hotel Hilton, Salón B', 150, 'no', 'si', 'oro'),
+(current_date + 15, '10:00:00', 'abierta', 'Subasta 100% Virtual', 500, 'no', 'no', 'comun'),
+(current_date + 20, '18:00:00', 'abierta', 'Depósito Central', 50, 'si', 'si', 'platino')
 ON CONFLICT DO NOTHING;
 
 -- Personas (Revisor, Vendedor, Postor)
@@ -380,16 +430,30 @@ ON storage.objects FOR ALL TO anon, authenticated
 USING (bucket_id = 'dni-photos')
 WITH CHECK (bucket_id = 'dni-photos');
 
+ALTER TABLE public.mediosdepago ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.multas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.paises ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "mediosdepago_all_authenticated" ON public.mediosdepago;
+DROP POLICY IF EXISTS "multas_all_authenticated" ON public.multas;
+DROP POLICY IF EXISTS "notificaciones_all_authenticated" ON public.notificaciones;
+DROP POLICY IF EXISTS "paises_select_everyone" ON public.paises;
+
+CREATE POLICY "mediosdepago_all_authenticated" ON public.mediosdepago FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "multas_all_authenticated" ON public.multas FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "notificaciones_all_authenticated" ON public.notificaciones FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "paises_select_everyone" ON public.paises FOR SELECT TO anon, authenticated USING (true);
+
 -- ---------------------------------------------------------------------
 -- 9. Trigger para borrar archivos de Storage cuando se elimina una Persona
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.delete_persona_storage_files()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Elimina las filas de metadata en storage.objects (hace que desaparezcan del panel de Supabase)
-    DELETE FROM storage.objects 
-    WHERE bucket_id = 'dni-photos' 
-      AND name LIKE OLD.documento || '/%';
+    -- NOTA: Se removió la eliminación directa sobre storage.objects
+    -- debido a la restricción de seguridad de Supabase (Error 42501).
+    -- La limpieza de archivos se realiza ahora desde la app móvil con la Storage API.
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

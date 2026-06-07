@@ -4,12 +4,14 @@ export const COLORS = {
   primary: '#0A5CFF',        // Azul Cobalto
   secondary: '#FF8C00',      // Naranja
   
-  // Grayscale Palette (matching Figma image)
-  white: '#FFFFFF',
-  lightGray100: '#E5E5EA',   // Light Gray 100
-  lightGray200: '#8E8E93',   // Light Gray 200
-  darkGray500: '#202024',    // Dark Gray 500
-  darkGray600: '#121214',    // Dark Gray 600
+  // Grayscale Palette (Light Theme)
+  white: '#1C1C1E',          // Was white text, now dark gray text
+  textWhite: '#FFFFFF',      // True white for buttons, badges, and status labels
+  lightGray100: '#2C2C2E',   // Was light gray text, now dark slate text
+  lightGray200: '#636366',   // Was muted gray, now slate gray
+  darkGray500: '#FFFFFF',    // Was dark card bg, now white card bg
+  darkGray600: '#F2F2F7',    // Was dark page bg, now light gray page bg
+  panelBackground: '#FFFFFF', // modal background
   
   // Status Helpers
   success: '#10B981',        // Emerald Green
@@ -18,9 +20,9 @@ export const COLORS = {
   info: '#0A5CFF',           // Cobalt Blue
   
   // Opacities & Borders
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderMuted: 'rgba(255, 255, 255, 0.03)',
-  overlay: 'rgba(10, 10, 15, 0.85)',
+  border: 'rgba(0, 0, 0, 0.08)',
+  borderMuted: 'rgba(0, 0, 0, 0.04)',
+  overlay: 'rgba(0, 0, 0, 0.5)',
 };
 
 export const FONTS = {

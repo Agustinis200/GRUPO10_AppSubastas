@@ -1,4 +1,40 @@
 import { supabase } from './supabaseClient';
+import { apiService } from './apiService';
+
+// Custom Base64 & Hex Conversion utilities for Bytea / Varbinary
+const uint8ArrayToBase64 = (uint8Array) => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  const len = uint8Array.length;
+  for (let i = 0; i < len; i += 3) {
+    const b1 = uint8Array[i];
+    const b2 = i + 1 < len ? uint8Array[i + 1] : NaN;
+    const b3 = i + 2 < len ? uint8Array[i + 2] : NaN;
+    
+    const enc1 = b1 >> 2;
+    const enc2 = ((b1 & 3) << 4) | (isNaN(b2) ? 0 : b2 >> 4);
+    const enc3 = isNaN(b2) ? 64 : ((b2 & 15) << 2) | (isNaN(b3) ? 0 : b3 >> 6);
+    const enc4 = isNaN(b3) ? 64 : b3 & 63;
+    
+    result += chars.charAt(enc1) + chars.charAt(enc2) +
+              (enc3 === 64 ? '=' : chars.charAt(enc3)) +
+              (enc4 === 64 ? '=' : chars.charAt(enc4));
+  }
+  return result;
+};
+
+const hexToBase64 = (hexStr) => {
+  if (!hexStr) return '';
+  let cleanHex = hexStr;
+  if (hexStr.startsWith('\\x') || hexStr.startsWith('0x')) {
+    cleanHex = hexStr.slice(2);
+  }
+  if (!cleanHex) return '';
+  const matched = cleanHex.match(/.{1,2}/g);
+  if (!matched) return '';
+  const bytes = new Uint8Array(matched.map(byte => parseInt(byte, 16)));
+  return uint8ArrayToBase64(bytes);
+};
 
 // Helper to calculate seconds remaining until a date/time
 const getSecondsRemaining = (dateStr, timeStr) => {
@@ -30,11 +66,23 @@ const mapDbItemToUi = (dbItem) => {
     ? sortedBids[0].asistentes.clientes.personas.nombre
     : 'Nadie';
 
-  // Product Image from 'fotos' relation
+  // Decode binary photos from photos relation
   const fotosList = product.fotos || [];
-  const imageUrl = fotosList.length > 0 
-    ? fotosList[0].foto 
-    : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80';
+  let imageUrl = 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80';
+  if (fotosList.length > 0) {
+    imageUrl = apiService.parseLegacyBytea(fotosList[0].foto) || imageUrl;
+  }
+
+  const allImages = fotosList.map(f => {
+    return apiService.parseLegacyBytea(f.foto);
+  }).filter(Boolean);
+
+  // Insurance details
+  const seguroObj = product.seguro || {};
+
+  // Historical info and origin document
+  const infoHistorica = product.informacion_historica || '';
+  const docOrigen = product.documento_origen || null;
 
   // Calculate ends_at
   let endsAtStr = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
@@ -44,6 +92,7 @@ const mapDbItemToUi = (dbItem) => {
 
   return {
     identificador: dbItem.identificador,
+    subasta_id: subasta.identificador || null,
     fecha: subasta.fecha || '',
     hora: subasta.hora || '',
     estado: subasta.estado || 'abierta',
@@ -56,11 +105,19 @@ const mapDbItemToUi = (dbItem) => {
       titulo: product.descripcioncompleta || 'Artículo sin título',
       descripcion: product.descripcioncatalogo || 'Sin descripción',
       image_url: imageUrl,
+      images: allImages.length > 0 ? allImages : [imageUrl],
       seller_name: product.duenios?.personas?.nombre || 'Vendedor Anónimo',
+      documento_origen: docOrigen,
+      poliza: seguroObj.nropoliza ? {
+        nroPoliza: seguroObj.nropoliza,
+        compania: seguroObj.compania,
+        polizaCombinada: seguroObj.polizacombinada,
+        importe: Number(seguroObj.importe)
+      } : null,
       historia: {
         artista: 'Detalle de Revisor',
         anio: 'N/A',
-        contexto: `Producto revisado por empleado ID ${product.revisor || 'desconocido'}`
+        contexto: infoHistorica || `Producto revisado por empleado ID ${product.revisor || 'desconocido'}`
       }
     },
     bid_count: bids.length,
@@ -73,6 +130,7 @@ const mapDbItemToUi = (dbItem) => {
 let mockAuctions = [
   {
     identificador: 1,
+    subasta_id: 1,
     fecha: '2026-06-05',
     hora: '14:30:00',
     estado: 'abierta',
@@ -99,6 +157,7 @@ let mockAuctions = [
   },
   {
     identificador: 2,
+    subasta_id: 2,
     fecha: '2026-06-12',
     hora: '10:00:00',
     estado: 'abierta',
@@ -125,6 +184,7 @@ let mockAuctions = [
   },
   {
     identificador: 3,
+    subasta_id: 3,
     fecha: '2026-06-20',
     hora: '18:00:00',
     estado: 'abierta',
@@ -162,6 +222,7 @@ const isSupabaseConfigured = () => {
 const bidListeners = new Set();
 
 export const supabaseService = {
+  mockAuctions, // Expose mockAuctions for offline uploads consistency
   getConfigStatus() {
     const configured = isSupabaseConfigured();
     return {
@@ -195,6 +256,14 @@ export const supabaseService = {
             descripcioncompleta,
             descripcioncatalogo,
             revisor,
+            informacion_historica,
+            documento_origen,
+            seguro:seguros (
+              nropoliza,
+              compania,
+              polizacombinada,
+              importe
+            ),
             duenios (
               personas (
                 nombre
@@ -296,6 +365,85 @@ export const supabaseService = {
   async placeBid(itemId, amount, bidderName = 'Usuario Postor') {
     let targetItem;
 
+    // 1. Fetch user profile and perform validation rules (methods of payment, fines, categories)
+    let profile;
+    try {
+      profile = await apiService.getProfile();
+    } catch (e) {
+      return { error: 'Inicia sesión para poder realizar una oferta.' };
+    }
+
+    if (!profile) {
+      return { error: 'Inicia sesión para poder realizar una oferta.' };
+    }
+
+    const clienteId = profile.identificador;
+
+    // A. Verify client has active payment methods
+    try {
+      const paymentMethods = await apiService.getPaymentMethods(clienteId);
+      if (!paymentMethods || paymentMethods.length === 0) {
+        return { error: 'No puedes ofertar sin un medio de pago registrado. Agrégalo en tu Perfil.' };
+      }
+    } catch (err) {
+      return { error: 'Error al verificar medios de pago.' };
+    }
+
+    // B. Verify client has no outstanding/pending fines
+    try {
+      const fines = await apiService.getUserFines(clienteId);
+      const pendingFines = fines.filter(f => f.estado === 'pendiente');
+      if (pendingFines.length > 0) {
+        return { error: 'Tu cuenta está bloqueada temporalmente por tener multas pendientes de pago.' };
+      }
+    } catch (err) {
+      return { error: 'Error al verificar multas.' };
+    }
+
+    // C. Verify client category matches auction category (tier hierarchy check)
+    let auctionCategory = 'comun';
+    if (!isSupabaseConfigured()) {
+      targetItem = mockAuctions.find(a => a.identificador === itemId);
+      if (!targetItem) return { error: 'Artículo no encontrado' };
+      auctionCategory = targetItem.categoria || 'comun';
+    } else {
+      try {
+        const { data: dbItems, error: fetchErr } = await supabase
+          .from('itemscatalogo')
+          .select(`
+            identificador,
+            catalogo:catalogos (
+              subastas (
+                categoria
+              )
+            )
+          `)
+          .eq('identificador', itemId);
+
+        if (fetchErr || !dbItems || dbItems.length === 0) {
+          return { error: 'No se pudo encontrar el artículo de catálogo.' };
+        }
+        const dbItem = dbItems[0];
+        auctionCategory = dbItem.catalogo?.subastas?.categoria || 'comun';
+      } catch (err) {
+        return { error: 'Error al verificar la categoría de la subasta.' };
+      }
+    }
+
+    const clientCategory = profile.categoria || 'comun';
+    const TIER_HIERARCHY = {
+      'comun': 1,
+      'especial': 2,
+      'plata': 3,
+      'oro': 4,
+      'platino': 5
+    };
+
+    if ((TIER_HIERARCHY[clientCategory] || 1) < (TIER_HIERARCHY[auctionCategory] || 1)) {
+      return { error: `Esta subasta requiere categoría ${auctionCategory.toUpperCase()} o superior. Tu nivel actual es ${clientCategory.toUpperCase()}.` };
+    }
+
+    // 2. Perform bid placement logic
     if (!isSupabaseConfigured()) {
       targetItem = mockAuctions.find(a => a.identificador === itemId);
       if (!targetItem) return { error: 'Artículo no encontrado' };
@@ -348,16 +496,6 @@ export const supabaseService = {
 
       const dbItem = dbItems[0];
       const subastaId = dbItem.catalogo?.subastas?.identificador;
-
-      // 2. Fetch or create assistant record for this client in the active subasta
-      let postorPerson = null;
-      const { data: personaUser } = await supabase
-        .from('personas')
-        .select('identificador')
-        .eq('email', 'juan@mail.com')
-        .single();
-      
-      const clienteId = personaUser ? personaUser.identificador : 3;
 
       const { data: assistantData, error: assistantErr } = await supabase
         .from('asistentes')

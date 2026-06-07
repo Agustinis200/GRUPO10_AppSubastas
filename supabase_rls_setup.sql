@@ -82,61 +82,67 @@ CREATE POLICY "personas_select_everyone" ON public.personas
 CREATE POLICY "personas_insert_everyone" ON public.personas
   FOR INSERT TO anon, authenticated WITH CHECK (true);
 
--- Allow authenticated users to update only their own profile details (needed for OTP verification & state activation)
-CREATE POLICY "personas_update_owner" ON public.personas
-  FOR UPDATE TO authenticated USING (auth.jwt()->>'email' = email);
+-- Allow both anon and authenticated to update profile details (needed for direct DB login updates)
+CREATE POLICY "personas_update_everyone" ON public.personas
+  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
 
 -- ---------------------------------------------------------------------
 -- 4. Define Policies for Clientes
 -- ---------------------------------------------------------------------
--- Allow authenticated users to view customer metadata
-CREATE POLICY "clientes_select_authenticated" ON public.clientes
-  FOR SELECT TO authenticated USING (true);
+-- Allow both anon and authenticated users to view customer metadata
+CREATE POLICY "clientes_select_everyone" ON public.clientes
+  FOR SELECT TO anon, authenticated USING (true);
 
--- Allow anon and authenticated to insert (needed for pre-registration form)
+-- Allow anon and authenticated to insert (needed for pre-registration and approval)
 CREATE POLICY "clientes_insert_everyone" ON public.clientes
   FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- ---------------------------------------------------------------------
 -- 5. Define Policies for Asistentes (Subastas Registration)
 -- ---------------------------------------------------------------------
--- Allow authenticated users to view assistant lists
-CREATE POLICY "asistentes_select_authenticated" ON public.asistentes
-  FOR SELECT TO authenticated USING (true);
+-- Allow both anon and authenticated users to view assistant lists
+CREATE POLICY "asistentes_select_everyone" ON public.asistentes
+  FOR SELECT TO anon, authenticated USING (true);
 
--- Allow authenticated users to join/register for auctions
-CREATE POLICY "asistentes_insert_authenticated" ON public.asistentes
-  FOR INSERT TO authenticated WITH CHECK (true);
+-- Allow both anon and authenticated users to join/register for auctions
+CREATE POLICY "asistentes_insert_everyone" ON public.asistentes
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- ---------------------------------------------------------------------
 -- 6. Define Policies for Pujos (Bids)
 -- ---------------------------------------------------------------------
--- Allow authenticated users to read bid listings
-CREATE POLICY "pujos_select_authenticated" ON public.pujos
-  FOR SELECT TO authenticated USING (true);
+-- Allow both anon and authenticated users to read bid listings
+CREATE POLICY "pujos_select_everyone" ON public.pujos
+  FOR SELECT TO anon, authenticated USING (true);
 
--- Allow authenticated users to place new bids
-CREATE POLICY "pujos_insert_authenticated" ON public.pujos
-  FOR INSERT TO authenticated WITH CHECK (true);
+-- Allow both anon and authenticated users to place new bids
+CREATE POLICY "pujos_insert_everyone" ON public.pujos
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- ---------------------------------------------------------------------
 -- 7. Define Read-Only Policies for Catalog & Auction Tables
 -- ---------------------------------------------------------------------
--- Only allow authenticated users to browse the catalog data, preventing updates/deletes from frontend clients.
-CREATE POLICY "subastas_select_authenticated" ON public.subastas
-  FOR SELECT TO authenticated USING (true);
+-- Allow both anon and authenticated users to browse catalog data, preventing updates/deletes.
+CREATE POLICY "subastas_select_everyone" ON public.subastas
+  FOR SELECT TO anon, authenticated USING (true);
 
-CREATE POLICY "catalogos_select_authenticated" ON public.catalogos
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "catalogos_select_everyone" ON public.catalogos
+  FOR SELECT TO anon, authenticated USING (true);
 
-CREATE POLICY "itemscatalogo_select_authenticated" ON public.itemscatalogo
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "itemscatalogo_select_everyone" ON public.itemscatalogo
+  FOR SELECT TO anon, authenticated USING (true);
 
-CREATE POLICY "productos_select_authenticated" ON public.productos
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "productos_select_everyone" ON public.productos
+  FOR SELECT TO anon, authenticated USING (true);
 
-CREATE POLICY "fotos_select_authenticated" ON public.fotos
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "productos_insert_everyone" ON public.productos
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
+
+CREATE POLICY "fotos_select_everyone" ON public.fotos
+  FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "fotos_insert_everyone" ON public.fotos
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- ---------------------------------------------------------------------
 -- 8. Storage Policies for 'dni-photos' bucket

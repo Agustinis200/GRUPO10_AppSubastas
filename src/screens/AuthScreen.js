@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -9,14 +9,18 @@ import {
   ScrollView, 
   Image,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal,
+  FlatList,
+  Alert
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { apiService } from '../api/apiService';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
+import { Feather } from '@expo/vector-icons';
 
 export default function AuthScreen({ onLoginSuccess }) {
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'pre-register', 'verify', 'set-password'
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'pre-register', 'forgot-password', 'reset-password'
   
   // Shared loading state
   const [loading, setLoading] = useState(false);
@@ -26,6 +30,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   // Login inputs
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Pre-register inputs
   const [regNombre, setRegNombre] = useState('');
@@ -34,26 +39,70 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [regEmail, setRegEmail] = useState('');
   const [regDocFrente, setRegDocFrente] = useState(null);
   const [regDocDorso, setRegDocDorso] = useState(null);
+  const [regSelfie, setRegSelfie] = useState(null);
+  const [acceptPolicies, setAcceptPolicies] = useState(false);
+  
+  // Countries list states
+  const [paises, setPaises] = useState([]);
+  const [selectedPais, setSelectedPais] = useState(32); // Default: Argentina
+  const [selectedPaisNombre, setSelectedPaisNombre] = useState('Argentina');
+  const [showCountriesModal, setShowCountriesModal] = useState(false);
 
-  // Verification & Password setting inputs
-  const [compEmail, setCompEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  // Recovery & Password Reset inputs
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryOtp, setRecoveryOtp] = useState('');
+  const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
+  const [recoveryConfirmNewPassword, setRecoveryConfirmNewPassword] = useState('');
 
-  const [showSourceSelector, setShowSourceSelector] = useState(false);
-  const [activePhotoType, setActivePhotoType] = useState(null); // 'frente', 'dorso'
+  // Support contact display
+  const [showSupportModal, setShowSupportModal] = useState(false);
 
-  const openSelector = (type) => {
-    setActivePhotoType(type);
-    setShowSourceSelector(true);
-    setErrorMessage('');
-    setSuccessMessage('');
+  useEffect(() => {
+    fetchCountries();
+  }, []);
+
+  const fetchCountries = async () => {
+    try {
+      const list = await apiService.getPaises();
+      setPaises(list || []);
+      // Map to default
+      const defaultCountry = list.find(c => c.numero === 32);
+      if (defaultCountry) {
+        setSelectedPaisNombre(defaultCountry.nombre);
+      }
+    } catch (e) {
+      console.warn('Error retrieving countries:', e);
+    }
   };
 
-  const pickFromSource = async (source) => {
-    setShowSourceSelector(false);
-    if (!activePhotoType) return;
+  const openSelector = (type) => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    let title = 'Subir imagen';
+    if (type === 'frente') title = 'Subir foto frontal de DNI';
+    if (type === 'dorso') title = 'Subir foto dorsal de DNI';
+    if (type === 'selfie') title = 'Tomar selfie de validación';
+
+    Alert.alert(
+      title,
+      '¿Cómo quieres agregar la foto?',
+      [
+        { 
+          text: 'Tomar Foto con la Cámara', 
+          onPress: () => pickFromSource('camera', type)
+        },
+        { 
+          text: 'Elegir desde la Galería', 
+          onPress: () => pickFromSource('gallery', type)
+        },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
+  };
+
+  const pickFromSource = async (source, type) => {
+    if (!type) return;
     
     try {
       let result;
@@ -65,8 +114,7 @@ export default function AuthScreen({ onLoginSuccess }) {
         }
         
         result = await ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [4, 3],
+          allowsEditing: false,
           quality: 0.5,
           base64: true,
         });
@@ -79,8 +127,7 @@ export default function AuthScreen({ onLoginSuccess }) {
         
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: 'images',
-          allowsEditing: true,
-          aspect: [4, 3],
+          allowsEditing: false,
           quality: 0.5,
           base64: true,
         });
@@ -91,10 +138,12 @@ export default function AuthScreen({ onLoginSuccess }) {
           uri: result.assets[0].uri,
           base64: result.assets[0].base64
         };
-        if (activePhotoType === 'frente') {
+        if (type === 'frente') {
           setRegDocFrente(fileObj);
-        } else {
+        } else if (type === 'dorso') {
           setRegDocDorso(fileObj);
+        } else if (type === 'selfie') {
+          setRegSelfie(fileObj);
         }
       }
     } catch (e) {
@@ -134,6 +183,14 @@ export default function AuthScreen({ onLoginSuccess }) {
       setErrorMessage('Por favor carga las fotos del DNI (Frente y Dorso).');
       return;
     }
+    if (!regSelfie) {
+      setErrorMessage('Por favor tómate una Selfie de validación.');
+      return;
+    }
+    if (!acceptPolicies) {
+      setErrorMessage('Debes aceptar las políticas de privacidad y condiciones de uso.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -142,24 +199,75 @@ export default function AuthScreen({ onLoginSuccess }) {
         documento: regDocumento.trim(),
         direccion: regDireccion.trim(),
         mail: regEmail.trim(),
-        pais_id: 32, // Argentina por defecto
+        pais_id: selectedPais,
         foto_documento_frente: regDocFrente.base64,
-        foto_documento_dorso: regDocDorso.base64
+        foto_documento_dorso: regDocDorso.base64,
+        foto_selfie: regSelfie.base64
       };
       const result = await apiService.preRegister(payload);
       setLoading(false);
-      setSuccessMessage('Registro exitoso. Se ha enviado un código de 6 dígitos a tu correo. Úsalo como tu contraseña en la pestaña "Ingresar".');
+      setSuccessMessage('Registro exitoso. Tu solicitud ha sido enviada. Una vez aprobada por nuestro revisor técnico, recibirás tu contraseña predefinida por correo electrónico.');
       
       // Auto switch to login tab after 3 seconds
       setTimeout(() => {
         setLoginEmail(regEmail);
         setAuthMode('login');
         setSuccessMessage('');
-      }, 3500);
+      }, 4000);
 
     } catch (err) {
       setLoading(false);
       setErrorMessage(err.message || 'Error en el pre-registro.');
+    }
+  };
+
+  const handleForgotPasswordRequest = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+    if (!recoveryEmail) {
+      setErrorMessage('Por favor ingresa tu correo electrónico.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiService.resetPasswordRequest(recoveryEmail);
+      setLoading(false);
+      setSuccessMessage('Código de verificación enviado. Revisa tu correo.');
+      setAuthMode('reset-password');
+    } catch (err) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Error al solicitar el cambio de contraseña.');
+    }
+  };
+
+  const handleForgotPasswordConfirm = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+    if (!recoveryOtp || !recoveryNewPassword || !recoveryConfirmNewPassword) {
+      setErrorMessage('Por favor completa todos los campos.');
+      return;
+    }
+    if (recoveryNewPassword !== recoveryConfirmNewPassword) {
+      setErrorMessage('Las contraseñas no coinciden.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiService.resetPasswordConfirm(recoveryEmail, recoveryOtp, recoveryNewPassword);
+      setLoading(false);
+      setSuccessMessage('¡Contraseña guardada con éxito!');
+      
+      setTimeout(() => {
+        setLoginEmail(recoveryEmail);
+        setLoginPassword(recoveryNewPassword);
+        setAuthMode('login');
+        setSuccessMessage('');
+      }, 2000);
+    } catch (err) {
+      setLoading(false);
+      setErrorMessage(err.message || 'Error al guardar la nueva contraseña.');
     }
   };
 
@@ -172,26 +280,28 @@ export default function AuthScreen({ onLoginSuccess }) {
         
         {/* Brand Logo Header */}
         <View style={styles.brandHeader}>
-          <Text style={styles.brandTitle}>PujaYa!</Text>
+          <Text style={styles.brandTitle}>🔨 PujaYa!</Text>
           <Text style={styles.brandSubtitle}>Registra ofertas, gana subastas online</Text>
         </View>
 
-        {/* Tab Selection */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, authMode === 'login' && styles.activeTab]}
-            onPress={() => { setAuthMode('login'); setErrorMessage(''); setSuccessMessage(''); }}
-          >
-            <Text style={[styles.tabText, authMode === 'login' && styles.activeTabText]}>Ingresar</Text>
-          </TouchableOpacity>
+        {/* Tab Selection (Only show when not in recovery flows) */}
+        {['login', 'pre-register'].includes(authMode) && (
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[styles.tab, authMode === 'login' && styles.activeTab]}
+              onPress={() => { setAuthMode('login'); setErrorMessage(''); setSuccessMessage(''); }}
+            >
+              <Text style={[styles.tabText, authMode === 'login' && styles.activeTabText]}>Ingresar</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.tab, authMode === 'pre-register' && styles.activeTab]}
-            onPress={() => { setAuthMode('pre-register'); setErrorMessage(''); setSuccessMessage(''); }}
-          >
-            <Text style={[styles.tabText, authMode === 'pre-register' && styles.activeTabText]}>Registro</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity 
+              style={[styles.tab, authMode === 'pre-register' && styles.activeTab]}
+              onPress={() => { setAuthMode('pre-register'); setErrorMessage(''); setSuccessMessage(''); }}
+            >
+              <Text style={[styles.tabText, authMode === 'pre-register' && styles.activeTabText]}>Registro</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Form Panel */}
         <View style={styles.card}>
@@ -212,27 +322,39 @@ export default function AuthScreen({ onLoginSuccess }) {
                 autoCapitalize="none"
               />
 
-              <Text style={styles.inputLabel}>Contraseña / Código de Correo</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="******"
-                placeholderTextColor={COLORS.lightGray200}
-                value={loginPassword}
-                onChangeText={setLoginPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
+              <Text style={styles.inputLabel}>Contraseña</Text>
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="******"
+                  placeholderTextColor={COLORS.lightGray200}
+                  value={loginPassword}
+                  onChangeText={setLoginPassword}
+                  secureTextEntry={!showLoginPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity 
+                  style={styles.passwordVisibilityButton}
+                  onPress={() => setShowLoginPassword(!showLoginPassword)}
+                >
+                  <Feather 
+                    name={showLoginPassword ? "eye" : "eye-off"} 
+                    size={20} 
+                    color={COLORS.lightGray200} 
+                  />
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity 
-                style={[styles.submitButton, loading && styles.disabledButton]}
+                style={[styles.submitButton, loading && styles.disabledButton, { marginTop: 20 }]}
                 onPress={handleLogin}
                 disabled={loading}
               >
-                {loading ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.submitButtonText}>Entrar</Text>}
+                {loading ? <ActivityIndicator color={COLORS.textWhite} /> : <Text style={styles.submitButtonText}>Entrar</Text>}
               </TouchableOpacity>
 
               <Text style={styles.hintText}>
-                ¿No tienes cuenta? Regístrate en la pestaña "Registro". Recibirás un correo con el código para ingresar.
+                ¿No tienes cuenta? Regístrate en la pestaña "Registro". Una vez aprobada tu cuenta por nuestro revisor técnico, recibirás tu contraseña predefinida por correo.
               </Text>
             </View>
           )}
@@ -258,6 +380,15 @@ export default function AuthScreen({ onLoginSuccess }) {
                 onChangeText={setRegDocumento}
                 keyboardType="numeric"
               />
+
+              <Text style={styles.inputLabel}>País de Residencia</Text>
+              <TouchableOpacity 
+                style={styles.countryPickerButton} 
+                onPress={() => setShowCountriesModal(true)}
+              >
+                <Text style={styles.countryPickerText}>{selectedPaisNombre}</Text>
+                <Text style={styles.countryPickerArrow}>▼</Text>
+              </TouchableOpacity>
 
               <Text style={styles.inputLabel}>Dirección Postal</Text>
               <TextInput
@@ -305,12 +436,45 @@ export default function AuthScreen({ onLoginSuccess }) {
                 </TouchableOpacity>
               </View>
 
+              {/* Selfie validation capture */}
+              <Text style={styles.inputLabel}>Selfie de Validación (Retrato)</Text>
+              <TouchableOpacity style={styles.selfieBox} onPress={() => openSelector('selfie')}>
+                {regSelfie ? (
+                  <Image source={{ uri: regSelfie.uri }} style={styles.selfieThumbnail} />
+                ) : (
+                  <View style={styles.selfiePlaceholder}>
+                    <Text style={styles.placeholderIcon}>👤</Text>
+                    <Text style={styles.placeholderLabel}>Tomarse una Selfie</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Accept Policies Checkbox */}
+              <TouchableOpacity 
+                style={styles.checkboxRow} 
+                onPress={() => setAcceptPolicies(!acceptPolicies)}
+              >
+                <View style={[styles.checkbox, acceptPolicies && styles.checkboxChecked]}>
+                  {acceptPolicies && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>
+                  Acepto las políticas de privacidad y condiciones de uso de PujaYa!
+                </Text>
+              </TouchableOpacity>
+
               <TouchableOpacity 
                 style={[styles.submitButton, loading && styles.disabledButton]}
                 onPress={handlePreRegister}
                 disabled={loading}
               >
-                {loading ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.submitButtonText}>Pre-Registrarse</Text>}
+                {loading ? <ActivityIndicator color={COLORS.textWhite} /> : <Text style={styles.submitButtonText}>Pre-Registrarse</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={() => setShowSupportModal(true)} 
+                style={styles.supportLink}
+              >
+                <Text style={styles.supportLinkText}>¿Problemas con el registro? Contactar Soporte</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -319,29 +483,78 @@ export default function AuthScreen({ onLoginSuccess }) {
 
       </ScrollView>
 
-      {/* Image Source Selector Modal */}
-      {showSourceSelector && (
+
+
+      {/* Countries Picker Modal */}
+      <Modal
+        visible={showCountriesModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCountriesModal(false)}
+      >
         <View style={styles.selectorOverlay}>
-          <View style={styles.selectorContainer}>
-            <Text style={styles.selectorTitle}>Subir foto del DNI</Text>
-            <Text style={styles.selectorSubtitle}>¿Cómo quieres agregar la foto?</Text>
+          <View style={[styles.selectorContainer, { maxHeight: '70%', width: '90%' }]}>
+            <Text style={styles.selectorTitle}>Selecciona tu País</Text>
+            <Text style={[styles.selectorSubtitle, { marginBottom: 12 }]}>Elige tu nacionalidad de origen</Text>
             
-            <TouchableOpacity style={styles.selectorOption} onPress={() => pickFromSource('camera')}>
-              <Text style={styles.selectorOptionIcon}>📷</Text>
-              <Text style={styles.selectorOptionText}>Tomar Foto con la Cámara</Text>
-            </TouchableOpacity>
+            <FlatList
+              data={paises}
+              keyExtractor={(item) => item.numero.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.countryRow}
+                  onPress={() => {
+                    setSelectedPais(item.numero);
+                    setSelectedPaisNombre(item.nombre);
+                    setShowCountriesModal(false);
+                  }}
+                >
+                  <Text style={styles.countryRowText}>{item.nombre} ({item.nacionalidad})</Text>
+                </TouchableOpacity>
+              )}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              style={{ marginVertical: 10 }}
+            />
 
-            <TouchableOpacity style={styles.selectorOption} onPress={() => pickFromSource('gallery')}>
-              <Text style={styles.selectorOptionIcon}>🖼️</Text>
-              <Text style={styles.selectorOptionText}>Elegir desde la Galería</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.selectorOption, styles.cancelOption]} onPress={() => setShowSourceSelector(false)}>
-              <Text style={styles.cancelOptionText}>Cancelar</Text>
+            <TouchableOpacity 
+              style={[styles.selectorOption, styles.cancelOption, { marginTop: 10 }]} 
+              onPress={() => setShowCountriesModal(false)}
+            >
+              <Text style={styles.cancelOptionText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
-      )}
+      </Modal>
+
+      {/* Support Contact Info Modal */}
+      <Modal
+        visible={showSupportModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowSupportModal(false)}
+      >
+        <View style={styles.selectorOverlay}>
+          <View style={[styles.selectorContainer, { width: '85%' }]}>
+            <Text style={[styles.selectorTitle, { color: COLORS.secondary }]}>⚠️ Soporte PujaYa!</Text>
+            <Text style={[styles.selectorSubtitle, { marginTop: 8, lineHeight: 18 }]}>
+              Si tu documento ya está registrado, o tienes inconvenientes cargando tus fotos, por favor contáctanos:
+            </Text>
+            
+            <View style={styles.supportDetailsBox}>
+              <Text style={styles.supportTextItem}>✉️ Correo: <Text style={{ fontWeight: 'bold' }}>soporte@pujaya.com</Text></Text>
+              <Text style={styles.supportTextItem}>📞 Teléfono: <Text style={{ fontWeight: 'bold' }}>+54 11 4444-5555</Text></Text>
+              <Text style={styles.supportTextItem}>🕒 Horario: Lunes a Viernes 9:00 a 18:00 hs</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.submitButton, { marginTop: 15 }]} 
+              onPress={() => setShowSupportModal(false)}
+            >
+              <Text style={styles.submitButtonText}>Entendido</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
     </KeyboardAvoidingView>
   );
@@ -377,7 +590,7 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
     borderRadius: 14,
     padding: 4,
     marginBottom: 20,
@@ -400,7 +613,7 @@ const styles = StyleSheet.create({
     fontWeight: FONTS.weightBold,
   },
   activeTabText: {
-    color: COLORS.white,
+    color: COLORS.textWhite,
   },
   card: {
     backgroundColor: COLORS.darkGray500,
@@ -477,7 +690,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   submitButtonText: {
-    color: COLORS.white,
+    color: COLORS.textWhite,
     fontSize: FONTS.sizeLg,
     fontWeight: FONTS.weightBold,
   },
@@ -581,5 +794,157 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 18,
+  },
+  forgotPassContainer: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  forgotPassText: {
+    color: COLORS.primary,
+    fontWeight: FONTS.weightMedium,
+    fontSize: FONTS.sizeMd,
+  },
+  countryPickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkGray600,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    marginBottom: 16,
+  },
+  countryPickerText: {
+    color: COLORS.white,
+    fontSize: FONTS.sizeBase,
+  },
+  countryPickerArrow: {
+    color: COLORS.lightGray200,
+    fontSize: FONTS.sizeMd,
+  },
+  selfieBox: {
+    height: 120,
+    width: 120,
+    borderRadius: 60,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.darkGray600,
+    alignSelf: 'center',
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  selfieThumbnail: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  selfiePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingRight: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.darkGray600,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  checkmark: {
+    color: COLORS.textWhite,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    color: COLORS.lightGray100,
+    fontSize: FONTS.sizeMd,
+    flex: 1,
+    lineHeight: 16,
+  },
+  supportLink: {
+    alignItems: 'center',
+    marginTop: 18,
+    paddingVertical: 4,
+  },
+  supportLinkText: {
+    color: COLORS.lightGray200,
+    fontSize: FONTS.sizeSm,
+    textDecorationLine: 'underline',
+  },
+  cancelLink: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  cancelLinkText: {
+    color: COLORS.lightGray200,
+    fontSize: FONTS.sizeBase,
+    fontWeight: FONTS.weightMedium,
+  },
+  countryRow: {
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  countryRowText: {
+    color: COLORS.white,
+    fontSize: FONTS.sizeBase,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  supportDetailsBox: {
+    backgroundColor: COLORS.darkGray600,
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  supportTextItem: {
+    color: COLORS.white,
+    fontSize: FONTS.sizeMd,
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkGray600,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 16,
+    height: 48,
+    paddingRight: 12,
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    color: COLORS.white,
+    paddingHorizontal: 16,
+    fontSize: FONTS.sizeBase,
+  },
+  passwordVisibilityButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
