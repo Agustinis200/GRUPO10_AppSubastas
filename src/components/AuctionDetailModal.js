@@ -160,6 +160,39 @@ export default function AuctionDetailModal({ visible, auction, onClose, onBidSuc
               </View>
             )}
 
+            {/* Cobertura y Seguro policy display */}
+            <View style={styles.historyDetailBox}>
+              <Text style={styles.historyDetailTitle}>🛡️ Cobertura y Seguro</Text>
+              {auction.producto.poliza ? (
+                <View>
+                  <View style={styles.historyDetailRow}>
+                    <Text style={styles.historyDetailLabel}>Nº Póliza:</Text>
+                    <Text style={styles.historyDetailValue}>{auction.producto.poliza.nroPoliza}</Text>
+                  </View>
+                  <View style={styles.historyDetailRow}>
+                    <Text style={styles.historyDetailLabel}>Compañía:</Text>
+                    <Text style={styles.historyDetailValue}>{auction.producto.poliza.compania}</Text>
+                  </View>
+                  <View style={styles.historyDetailRow}>
+                    <Text style={styles.historyDetailLabel}>Valor Asegurado:</Text>
+                    <Text style={[styles.historyDetailValue, { color: COLORS.success, fontWeight: 'bold' }]}>
+                      ${auction.producto.poliza.importe.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.historyDetailRow}>
+                    <Text style={styles.historyDetailLabel}>Combinada:</Text>
+                    <Text style={styles.historyDetailValue}>
+                      {auction.producto.poliza.polizaCombinada === 'si' ? 'Sí (Cobertura Total)' : 'No'}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={{ color: COLORS.lightGray200, fontStyle: 'italic', fontSize: FONTS.sizeBase }}>
+                  Sin póliza de seguro asignada a este artículo.
+                </Text>
+              )}
+            </View>
+
             {/* Current Price State */}
             <View style={styles.priceRow}>
               <View style={styles.priceBox}>
@@ -255,7 +288,7 @@ export default function AuctionDetailModal({ visible, auction, onClose, onBidSuc
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color={COLORS.white} />
+                <ActivityIndicator size="small" color={COLORS.textWhite} />
               ) : (
                 <Text style={styles.submitButtonText}>Confirmar Puja</Text>
               )}
@@ -304,7 +337,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -434,7 +467,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -499,7 +532,7 @@ const styles = StyleSheet.create({
   },
   quickButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
     paddingVertical: 8,
     borderRadius: 8,
     alignItems: 'center',
@@ -561,7 +594,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   submitButtonText: {
-    color: COLORS.white,
+    color: COLORS.textWhite,
     fontSize: FONTS.sizeLg,
     fontWeight: FONTS.weightBold,
   },

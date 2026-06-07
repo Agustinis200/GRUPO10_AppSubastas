@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   liveText: {
-    color: COLORS.white,
+    color: COLORS.textWhite,
     fontSize: 10,
     fontWeight: '800',
   },
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   bidButtonText: {
-    color: COLORS.white,
+    color: COLORS.textWhite,
     fontWeight: FONTS.weightBold,
     fontSize: FONTS.sizeBase,
   },
