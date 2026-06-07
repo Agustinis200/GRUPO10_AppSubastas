@@ -14,7 +14,8 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { apiService } from './src/api/apiService';
@@ -23,6 +24,9 @@ import AuctionCard from './src/components/AuctionCard';
 import AuctionDetailModal from './src/components/AuctionDetailModal';
 import AuthScreen from './src/screens/AuthScreen';
 import { COLORS, FONTS, SHADOWS } from './src/styles/theme';
+
+// Prevent splash screen from hiding as early as possible
+// SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const CATEGORIES = [
   { key: 'Todos', label: 'Todos' },
@@ -73,6 +77,10 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Splash Screen Interactive State
+  const [splashPhase, setSplashPhase] = useState('loading'); // 'loading', 'ready'
+  const [loadingDots, setLoadingDots] = useState('.');
+
   // User Products list State
   const [myProducts, setMyProducts] = useState([]);
   const [loadingMyProducts, setLoadingMyProducts] = useState(false);
@@ -82,26 +90,49 @@ export default function App() {
     checkAuthentication();
   }, []);
 
+  // Effect for moving dots animation
+  useEffect(() => {
+    if (splashPhase === 'loading') {
+      const interval = setInterval(() => {
+        setLoadingDots(prev => {
+          if (prev === '...') return '.';
+          return prev + '.';
+        });
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [splashPhase]);
+
   const checkAuthentication = async () => {
     try {
+      // Manual delay of 4 seconds to appreciate the splash screen
+                                      await new Promise(resolve => setTimeout(resolve, 4000));
+      setSplashPhase('ready');
+
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
         const profile = await apiService.getProfile();
         setUserProfile(profile);
-        setIsAuthenticated(true);
-        fetchData();
-        checkConnection();
-      } else {
-        setIsAuthenticated(false);
-        setUserProfile(null);
       }
+
+      // Auto-enter after the 4 seconds delay
+      handleSplashEnter();
     } catch (e) {
-      console.warn('[App] Session check failed, redirecting to login:', e);
-      setIsAuthenticated(false);
-      setUserProfile(null);
-    } finally {
-      setAuthLoading(false);
+      console.warn('[App] Session check failed:', e);
+      handleSplashEnter(); // Still enter even if check fails
     }
+  };
+
+  const handleSplashEnter = async () => {
+    if (userProfile) {
+      setIsAuthenticated(true);
+      fetchData();
+      checkConnection();
+    } else {
+      setIsAuthenticated(false);
+    }
+    setAuthLoading(false);
+    await SplashScreen.hideAsync();
   };
 
   const handleLoginSuccess = () => {
@@ -330,28 +361,44 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Iniciando PujaYa!...</Text>
+      <View style={styles.splashContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <Image
+          source={require('./assets/splash-icon.png')}
+          style={styles.splashImage}
+        />
+
+        {splashPhase === 'loading' ? (
+          <View style={{ alignItems: 'center', height: 60, justifyContent: 'center' }}>
+            <Text style={{ fontSize: 40, color: '#0A5CFF', fontWeight: 'bold' }}>
+              {loadingDots}
+            </Text>
+          </View>
+        ) : (
+          <View style={{ height: 60 }} />
+        )}
       </View>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.darkGray600} />
-        <AuthScreen onLoginSuccess={handleLoginSuccess} />
-      </SafeAreaView>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor={COLORS.darkGray600} />
+          <AuthScreen onLoginSuccess={handleLoginSuccess} />
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkGray600} />
-      
-      {/* 1. SCREEN VIEW SWITCHER */}
-      <View style={styles.mainContent}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.darkGray600} />
+
+        {/* 1. SCREEN VIEW SWITCHER */}
+        <View style={styles.mainContent}>
 
         {/* TAB 1: HOME */}
         {activeTab === 'home' && (
@@ -777,6 +824,7 @@ export default function App() {
         </View>
       )}
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -793,6 +841,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkGray600,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  splashContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  splashImage: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+  },
+  splashLoader: {
+    marginTop: 20,
   },
   loadingText: {
     color: COLORS.lightGray200,
