@@ -17,7 +17,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { apiService } from '../api/apiService';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
 
 export default function AuthScreen({ onLoginSuccess }) {
   const [authMode, setAuthMode] = useState('login'); // 'login', 'pre-register', 'forgot-password', 'reset-password'
@@ -179,6 +179,16 @@ export default function AuthScreen({ onLoginSuccess }) {
       setErrorMessage('Por favor completa todos los campos de texto.');
       return;
     }
+    const docRegex = /^[0-9]{7,9}$/;
+    if (!docRegex.test(regDocumento.trim())) {
+      setErrorMessage('El documento debe ser puramente numérico y tener entre 7 y 9 dígitos.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(regEmail.trim())) {
+      setErrorMessage('Por favor ingresa un correo electrónico válido (debe contener "@" y un dominio como ".com" o similar).');
+      return;
+    }
     if (!regDocFrente || !regDocDorso) {
       setErrorMessage('Por favor carga las fotos del DNI (Frente y Dorso).');
       return;
@@ -208,12 +218,15 @@ export default function AuthScreen({ onLoginSuccess }) {
       setLoading(false);
       setSuccessMessage('Registro exitoso. Tu solicitud ha sido enviada. Una vez aprobada por nuestro revisor técnico, recibirás tu contraseña predefinida por correo electrónico.');
       
-      // Auto switch to login tab after 3 seconds
-      setTimeout(() => {
-        setLoginEmail(regEmail);
-        setAuthMode('login');
-        setSuccessMessage('');
-      }, 4000);
+      // Limpiar campos del formulario de pre-registro
+      setRegNombre('');
+      setRegDocumento('');
+      setRegDireccion('');
+      setRegEmail('');
+      setRegDocFrente(null);
+      setRegDocDorso(null);
+      setRegSelfie(null);
+      setAcceptPolicies(false);
 
     } catch (err) {
       setLoading(false);
@@ -280,7 +293,10 @@ export default function AuthScreen({ onLoginSuccess }) {
         
         {/* Brand Logo Header */}
         <View style={styles.brandHeader}>
-          <Text style={styles.brandTitle}>🔨 PujaYa!</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <FontAwesome5 name="gavel" size={28} color={COLORS.white} style={{ marginRight: 10, transform: [{ rotate: '-15deg' }] }} />
+            <Text style={styles.brandTitle}>PujaYa!</Text>
+          </View>
           <Text style={styles.brandSubtitle}>Registra ofertas, gana subastas online</Text>
         </View>
 
@@ -418,7 +434,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                     <Image source={{ uri: regDocFrente.uri }} style={styles.thumbnail} />
                   ) : (
                     <View style={styles.placeholderBox}>
-                      <Text style={styles.placeholderIcon}>📷</Text>
+                      <Feather name="camera" size={24} color={COLORS.lightGray200} style={{ marginBottom: 6 }} />
                       <Text style={styles.placeholderLabel}>Frente DNI</Text>
                     </View>
                   )}
@@ -429,7 +445,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                     <Image source={{ uri: regDocDorso.uri }} style={styles.thumbnail} />
                   ) : (
                     <View style={styles.placeholderBox}>
-                      <Text style={styles.placeholderIcon}>📷</Text>
+                      <Feather name="camera" size={24} color={COLORS.lightGray200} style={{ marginBottom: 6 }} />
                       <Text style={styles.placeholderLabel}>Dorso DNI</Text>
                     </View>
                   )}
@@ -443,7 +459,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                   <Image source={{ uri: regSelfie.uri }} style={styles.selfieThumbnail} />
                 ) : (
                   <View style={styles.selfiePlaceholder}>
-                    <Text style={styles.placeholderIcon}>👤</Text>
+                    <Feather name="user" size={32} color={COLORS.lightGray200} style={{ marginBottom: 6 }} />
                     <Text style={styles.placeholderLabel}>Tomarse una Selfie</Text>
                   </View>
                 )}
@@ -455,7 +471,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                 onPress={() => setAcceptPolicies(!acceptPolicies)}
               >
                 <View style={[styles.checkbox, acceptPolicies && styles.checkboxChecked]}>
-                  {acceptPolicies && <Text style={styles.checkmark}>✓</Text>}
+                  {acceptPolicies && <Feather name="check" size={14} color={COLORS.textWhite} />}
                 </View>
                 <Text style={styles.checkboxLabel}>
                   Acepto las políticas de privacidad y condiciones de uso de PujaYa!
@@ -535,15 +551,27 @@ export default function AuthScreen({ onLoginSuccess }) {
       >
         <View style={styles.selectorOverlay}>
           <View style={[styles.selectorContainer, { width: '85%' }]}>
-            <Text style={[styles.selectorTitle, { color: COLORS.secondary }]}>⚠️ Soporte PujaYa!</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+              <Feather name="alert-triangle" size={20} color={COLORS.secondary} style={{ marginRight: 8 }} />
+              <Text style={[styles.selectorTitle, { color: COLORS.secondary, marginBottom: 0 }]}>Soporte PujaYa!</Text>
+            </View>
             <Text style={[styles.selectorSubtitle, { marginTop: 8, lineHeight: 18 }]}>
               Si tu documento ya está registrado, o tienes inconvenientes cargando tus fotos, por favor contáctanos:
             </Text>
             
             <View style={styles.supportDetailsBox}>
-              <Text style={styles.supportTextItem}>✉️ Correo: <Text style={{ fontWeight: 'bold' }}>soporte@pujaya.com</Text></Text>
-              <Text style={styles.supportTextItem}>📞 Teléfono: <Text style={{ fontWeight: 'bold' }}>+54 11 4444-5555</Text></Text>
-              <Text style={styles.supportTextItem}>🕒 Horario: Lunes a Viernes 9:00 a 18:00 hs</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Feather name="mail" size={16} color={COLORS.lightGray200} style={{ marginRight: 8 }} />
+                <Text style={[styles.supportTextItem, { marginBottom: 0 }]}>Correo: <Text style={{ fontWeight: 'bold' }}>soporte@pujaya.com</Text></Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Feather name="phone" size={16} color={COLORS.lightGray200} style={{ marginRight: 8 }} />
+                <Text style={[styles.supportTextItem, { marginBottom: 0 }]}>Teléfono: <Text style={{ fontWeight: 'bold' }}>+54 11 4444-5555</Text></Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="clock" size={16} color={COLORS.lightGray200} style={{ marginRight: 8 }} />
+                <Text style={[styles.supportTextItem, { marginBottom: 0 }]}>Horario: Lunes a Viernes 9:00 a 18:00 hs</Text>
+              </View>
             </View>
 
             <TouchableOpacity 

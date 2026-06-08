@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 export default function Logo({ size = 'medium' }) {
   const isLarge = size === 'large';
@@ -12,7 +13,7 @@ export default function Logo({ size = 'medium' }) {
   return (
     <View style={styles.container}>
       <View style={[styles.iconContainer, SHADOWS.glow, { width: iconSize * 1.5, height: iconSize * 1.5, borderRadius: iconSize * 0.75 }]}>
-        <Text style={[styles.iconText, { fontSize: iconSize }]}>🔨</Text>
+        <FontAwesome5 name="gavel" size={iconSize * 0.85} color={COLORS.white} style={{ transform: [{ rotate: '-15deg' }] }} />
       </View>
       <View style={styles.textContainer}>
         <Text style={[styles.logoText, { fontSize: titleSize }]}>

@@ -21,7 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { apiService } from './src/api/apiService';
 import { supabaseService } from './src/api/supabaseService';
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import AuctionCard from './src/components/AuctionCard';
 import AuctionDetailModal from './src/components/AuctionDetailModal';
 import AuthScreen from './src/screens/AuthScreen';
@@ -131,6 +131,7 @@ export default function App() {
   }, []);
 
   const checkAuthentication = async () => {
+    const startTime = Date.now();
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
@@ -148,7 +149,11 @@ export default function App() {
       setIsAuthenticated(false);
       setUserProfile(null);
     } finally {
-      setAuthLoading(false);
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 4000 - elapsed);
+      setTimeout(() => {
+        setAuthLoading(false);
+      }, remaining);
     }
   };
 
@@ -295,15 +300,28 @@ export default function App() {
     setErrorMessage('');
     setSuccessMessage('');
     if (!newCardNumber) {
-      setErrorMessage('Por favor ingresa los datos de la tarjeta.');
+      setErrorMessage(newCardType === 'tarjeta' ? 'Por favor ingresa los datos de la tarjeta.' : 'Por favor ingresa los datos del CBU.');
       return;
     }
     
     // Mask number
-    const trimmed = newCardNumber.trim().replace(/\s/g, '');
-    if (trimmed.length < 12) {
-      setErrorMessage('Número de tarjeta inválido.');
+    const trimmed = newCardNumber.trim().replace(/[^0-9]/g, '');
+    const numericRegex = /^[0-9]+$/;
+    if (!numericRegex.test(trimmed)) {
+      setErrorMessage('El dato ingresado debe contener únicamente números.');
       return;
+    }
+
+    if (newCardType === 'tarjeta') {
+      if (trimmed.length < 15 || trimmed.length > 16) {
+        setErrorMessage('El número de tarjeta debe tener 15 o 16 dígitos.');
+        return;
+      }
+    } else {
+      if (trimmed.length !== 22) {
+        setErrorMessage('El CBU debe tener exactamente 22 dígitos.');
+        return;
+      }
     }
     const mascara = `**** **** **** ${trimmed.slice(-4)}`;
     const payload = {
@@ -678,7 +696,9 @@ export default function App() {
       {/* 1. SCREEN VIEW SWITCHER */}
       <View style={styles.mainContent}>
 
-        {/* TAB 1: HOME */}
+        {/* ========================================================== */}
+        {/* PANTALLA 1: INICIO / DASHBOARD (HOME)                      */}
+        {/* ========================================================== */}
         {activeTab === 'home' && (
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Header Panel */}
@@ -689,7 +709,7 @@ export default function App() {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <TouchableOpacity onPress={() => setShowNotifModal(true)} style={[styles.logoutIconButton, { marginRight: 10 }]}>
-                  <Text style={{ fontSize: 16 }}>🔔</Text>
+                  <Feather name="bell" size={18} color={COLORS.white} />
                   {unreadNotifCount > 0 && (
                     <View style={styles.bellBadgeMini}>
                       <Text style={styles.bellBadgeTextMini}>{unreadNotifCount}</Text>
@@ -697,7 +717,7 @@ export default function App() {
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleLogout} style={styles.logoutIconButton}>
-                  <Text style={styles.logoutIcon}>🚪</Text>
+                  <Feather name="log-out" size={18} color={COLORS.danger} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -718,19 +738,19 @@ export default function App() {
             <Text style={styles.sectionTitle}>Mi Actividad</Text>
             <View style={styles.statsContainer}>
               <View style={styles.statBox}>
-                <Text style={styles.statIcon}>🔨</Text>
+                <FontAwesome5 name="gavel" size={20} color={COLORS.primary} style={{ marginBottom: 6 }} />
                 <Text style={styles.statValue}>{stats.offers}</Text>
                 <Text style={styles.statLabel}>Ofertas</Text>
               </View>
 
               <View style={styles.statBox}>
-                <Text style={styles.statIcon}>📦</Text>
+                <Feather name="package" size={20} color={COLORS.primary} style={{ marginBottom: 6 }} />
                 <Text style={styles.statValue}>{stats.uploaded}</Text>
                 <Text style={styles.statLabel}>Artículos</Text>
               </View>
 
               <View style={styles.statBox}>
-                <Text style={styles.statIcon}>🏆</Text>
+                <Feather name="award" size={20} color={COLORS.primary} style={{ marginBottom: 6 }} />
                 <Text style={styles.statValue}>{stats.won}</Text>
                 <Text style={styles.statLabel}>Ganadas</Text>
               </View>
@@ -758,7 +778,9 @@ export default function App() {
           </ScrollView>
         )}
 
-        {/* TAB 2: SUBASTAS */}
+        {/* ========================================================== */}
+        {/* PANTALLA 2: CATÁLOGOS DE SUBASTAS (SUBASTAS)               */}
+        {/* ========================================================== */}
         {activeTab === 'subastas' && (
           <View style={{ flex: 1 }}>
             {!selectedSubasta ? (
@@ -771,7 +793,7 @@ export default function App() {
                       <Text style={styles.headerSubtitle}>Selecciona una subasta activa</Text>
                     </View>
                     <TouchableOpacity onPress={() => setShowNotifModal(true)} style={styles.bellButton}>
-                      <Text style={styles.bellIcon}>🔔</Text>
+                      <Feather name="bell" size={22} color={COLORS.white} />
                       {unreadNotifCount > 0 && (
                         <View style={styles.bellBadge}>
                           <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
@@ -788,7 +810,7 @@ export default function App() {
                   </View>
                 ) : subastas.length === 0 ? (
                   <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyTextIcon}>📅</Text>
+                    <Feather name="calendar" size={40} color={COLORS.lightGray200} style={{ marginBottom: 12 }} />
                     <Text style={styles.emptyTextTitle}>No hay subastas programadas</Text>
                     <Text style={styles.emptyTextSubtitle}>Por favor intenta más tarde.</Text>
                   </View>
@@ -804,7 +826,7 @@ export default function App() {
                       >
                         <View style={styles.subastaCatalogHeader}>
                           <View style={styles.subastaCatalogDateRow}>
-                            <Text style={styles.subastaCatalogDateIcon}>📅</Text>
+                            <Feather name="calendar" size={14} color={COLORS.lightGray200} style={{ marginRight: 4 }} />
                             <Text style={styles.subastaCatalogDateText}>{item.fecha} a las {item.hora}</Text>
                           </View>
                           <View style={[styles.subastaCatalogBadge, { backgroundColor: item.estado === 'abierta' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
@@ -814,7 +836,10 @@ export default function App() {
                           </View>
                         </View>
 
-                        <Text style={styles.subastaCatalogLocation} numberOfLines={2}>📍 {item.ubicacion}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                          <Feather name="map-pin" size={14} color={COLORS.lightGray200} style={{ marginRight: 6 }} />
+                          <Text style={[styles.subastaCatalogLocation, { flex: 1 }]} numberOfLines={2}>{item.ubicacion}</Text>
+                        </View>
 
                         <View style={styles.subastaCatalogDetails}>
                           <View style={styles.subastaDetailItem}>
@@ -850,8 +875,9 @@ export default function App() {
               <View style={{ flex: 1 }}>
                 {/* Catalog Detail List header */}
                 <View style={styles.header}>
-                  <TouchableOpacity onPress={() => setSelectedSubasta(null)} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>⬅ Volver a Subastas</Text>
+                  <TouchableOpacity onPress={() => setSelectedSubasta(null)} style={[styles.backButton, { flexDirection: 'row', alignItems: 'center' }]}>
+                    <Feather name="arrow-left" size={14} color={COLORS.secondary} style={{ marginRight: 6 }} />
+                    <Text style={styles.backButtonText}>Volver a Subastas</Text>
                   </TouchableOpacity>
                   <View style={{ marginTop: 12 }}>
                     <Text style={styles.headerTitle}>Catálogo de Artículos</Text>
@@ -873,7 +899,7 @@ export default function App() {
                     />
                     {searchQuery ? (
                       <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-                        <Text style={styles.clearButtonText}>✕</Text>
+                        <Feather name="x" size={16} color={COLORS.lightGray200} />
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -938,7 +964,9 @@ export default function App() {
           </View>
         )}
 
-        {/* TAB 3: UPLOAD PRODUCT */}
+        {/* ========================================================== */}
+        {/* PANTALLA 3: REGISTRO / SUBIDA DE PRODUCTOS (UPLOAD)        */}
+        {/* ========================================================== */}
         {activeTab === 'upload' && (
           <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
@@ -951,7 +979,7 @@ export default function App() {
                   <Text style={styles.headerSubtitle}>Registra un artículo para subasta</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowNotifModal(true)} style={styles.bellButton}>
-                  <Text style={styles.bellIcon}>🔔</Text>
+                  <Feather name="bell" size={22} color={COLORS.white} />
                   {unreadNotifCount > 0 && (
                     <View style={styles.bellBadge}>
                       <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
@@ -1024,7 +1052,7 @@ export default function App() {
                       onPress={() => openPhotoSourceSelector('product')}
                     >
                       <View style={styles.photoPlaceholder}>
-                        <Text style={styles.photoPlaceholderIcon}>📸</Text>
+                        <Feather name="image" size={32} color={COLORS.lightGray200} style={{ marginBottom: 6 }} />
                         <Text style={styles.photoPlaceholderLabel}>Seleccionar Mínimo 6 Fotos</Text>
                       </View>
                     </TouchableOpacity>
@@ -1039,7 +1067,7 @@ export default function App() {
                               setUploadPhotos(prev => prev.filter((_, i) => i !== idx));
                             }}
                           >
-                            <Text style={styles.deletePhotoBadgeText}>✕</Text>
+                            <Feather name="x" size={10} color={COLORS.textWhite} />
                           </TouchableOpacity>
                         </View>
                       ))}
@@ -1056,12 +1084,15 @@ export default function App() {
                     <View style={{ flex: 1, position: 'relative' }}>
                       <Image source={{ uri: uploadDocPhoto.uri }} style={styles.uploadedThumbnail} />
                       <View style={styles.docCheckOverlay}>
-                        <Text style={styles.docCheckOverlayText}>✓ Documento Cargado</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                          <Feather name="check" size={14} color={COLORS.textWhite} style={{ marginRight: 6 }} />
+                          <Text style={styles.docCheckOverlayText}>Documento Cargado</Text>
+                        </View>
                       </View>
                     </View>
                   ) : (
                     <View style={styles.photoPlaceholder}>
-                      <Text style={styles.photoPlaceholderIcon}>📄</Text>
+                      <Feather name="file-text" size={32} color={COLORS.lightGray200} style={{ marginBottom: 6 }} />
                       <Text style={styles.photoPlaceholderLabel}>Subir Documento de Procedencia</Text>
                     </View>
                   )}
@@ -1073,7 +1104,7 @@ export default function App() {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.checkbox, acceptUploadTerms && styles.checkboxChecked]}>
-                    {acceptUploadTerms && <Text style={styles.checkboxCheckmark}>✓</Text>}
+                    {acceptUploadTerms && <Feather name="check" size={12} color={COLORS.textWhite} />}
                   </View>
                   <Text style={styles.checkboxLabel}>
                     Acepto que los datos y documentos provistos son reales y autorizo la revisión del artículo.
@@ -1096,7 +1127,9 @@ export default function App() {
           </KeyboardAvoidingView>
         )}
 
-        {/* TAB 4: MIS ARTÍCULOS */}
+        {/* ========================================================== */}
+        {/* PANTALLA 4: MIS ARTÍCULOS REGISTRADOS (ARTICULOS)          */}
+        {/* ========================================================== */}
         {activeTab === 'articulos' && (
           <View style={{ flex: 1 }}>
             <View style={styles.header}>
@@ -1106,7 +1139,7 @@ export default function App() {
                   <Text style={styles.headerSubtitle}>Productos registrados a tu nombre</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowNotifModal(true)} style={styles.bellButton}>
-                  <Text style={styles.bellIcon}>🔔</Text>
+                  <Feather name="bell" size={22} color={COLORS.white} />
                   {unreadNotifCount > 0 && (
                     <View style={styles.bellBadge}>
                       <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
@@ -1123,7 +1156,7 @@ export default function App() {
               </View>
             ) : myProducts.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTextIcon}>📦</Text>
+                <Feather name="package" size={40} color={COLORS.lightGray200} style={{ marginBottom: 12 }} />
                 <Text style={styles.emptyTextTitle}>Aún no has subido artículos</Text>
                 <Text style={styles.emptyTextSubtitle}>Usa el botón central (+) para agregar tu primer producto.</Text>
               </View>
@@ -1155,7 +1188,9 @@ export default function App() {
           </View>
         )}
 
-        {/* TAB 5: PERFIL */}
+        {/* ========================================================== */}
+        {/* PANTALLA 5: PERFIL DE USUARIO / CONFIGURACIÓN (PERFIL)     */}
+        {/* ========================================================== */}
         {activeTab === 'perfil' && (
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -1164,7 +1199,7 @@ export default function App() {
                 <Text style={styles.headerSubtitle}>Datos de tu cuenta de Postor</Text>
               </View>
               <TouchableOpacity onPress={() => setShowNotifModal(true)} style={styles.bellButton}>
-                <Text style={styles.bellIcon}>🔔</Text>
+                <Feather name="bell" size={22} color={COLORS.white} />
                 {unreadNotifCount > 0 && (
                   <View style={styles.bellBadge}>
                     <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
@@ -1179,7 +1214,7 @@ export default function App() {
                 {userProfile?.foto ? (
                   <Image source={{ uri: userProfile.foto }} style={styles.avatarImage} />
                 ) : (
-                  <Text style={styles.avatarIconText}>👤</Text>
+                  <Feather name="user" size={40} color={COLORS.lightGray200} />
                 )}
               </View>
               <Text style={styles.profileNameText}>{userProfile?.nombre}</Text>
@@ -1231,7 +1266,10 @@ export default function App() {
                   setShowChangePasswordModal(true);
                 }}
               >
-                <Text style={styles.changePasswordButtonText}>🔒 Cambiar Contraseña</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="lock" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.changePasswordButtonText}>Cambiar Contraseña</Text>
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -1257,11 +1295,11 @@ export default function App() {
                 paymentMethods.map((pm) => (
                   <View key={pm.identificador.toString()} style={styles.paymentMethodItem}>
                     <View style={styles.paymentMethodIconBox}>
-                      <Text style={styles.paymentMethodIcon}>💳</Text>
+                      <Feather name="credit-card" size={18} color={COLORS.primary} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={styles.paymentMethodProvider}>
-                        {pm.proveedor} ({pm.tipo === 'tarjeta' ? 'Tarjeta' : 'CBU / Cuenta'})
+                        {pm.proveedor} ({pm.tipo === 'tarjeta' ? 'Tarjeta' : 'CBU'})
                       </Text>
                       <Text style={styles.paymentMethodMascara}>{pm.mascara}</Text>
                     </View>
@@ -1314,12 +1352,18 @@ export default function App() {
               )}
             </View>
 
-            {/* Technical Revisor Panel (Only for role 'Revisor Técnico') */}
+            {/* ========================================================== */}
+            {/* SECCIÓN ESPECIAL: PANEL DEL REVISOR TÉCNICO              */}
+            {/* (Solo para usuarios con cargo 'Revisor Técnico')          */}
+            {/* ========================================================== */}
             {userProfile?.cargo === 'Revisor Técnico' && (
               <View style={[styles.card, { borderColor: COLORS.secondary, borderWidth: 1.5, marginBottom: 20 }]}>
-                <Text style={[styles.profileSectionTitle, { color: COLORS.secondary }]}>
-                  🛡️ PANEL REVISOR TÉCNICO
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Feather name="shield" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+                  <Text style={[styles.profileSectionTitle, { color: COLORS.secondary, marginBottom: 0 }]}>
+                    PANEL REVISOR TÉCNICO
+                  </Text>
+                </View>
                 <Text style={styles.revisorSubtitle}>
                   Control de admisión manual de cuentas de clientes
                 </Text>
@@ -1346,7 +1390,7 @@ export default function App() {
                             <Image source={{ uri: client.foto }} style={styles.revisorSelfieImage} />
                           ) : (
                             <View style={styles.selfiePlaceholder}>
-                              <Text style={{ fontSize: 24 }}>👤</Text>
+                              <Feather name="user" size={24} color={COLORS.lightGray200} />
                               <Text style={styles.selfiePlaceholderText}>Sin foto selfie</Text>
                             </View>
                           )}
@@ -1390,17 +1434,19 @@ export default function App() {
 
                         <View style={styles.revisorActions}>
                           <TouchableOpacity 
-                            style={[styles.revisorActionBtn, styles.revisorApproveBtn]}
+                            style={[styles.revisorActionBtn, styles.revisorApproveBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                             onPress={() => handleApproveClient(client.identificador, revisorPasswords[client.identificador] !== undefined ? revisorPasswords[client.identificador] : '123456')}
                           >
-                            <Text style={styles.revisorBtnText}>✓ Admitir</Text>
+                            <Feather name="check" size={14} color={COLORS.textWhite} style={{ marginRight: 6 }} />
+                            <Text style={styles.revisorBtnText}>Admitir</Text>
                           </TouchableOpacity>
                           
                           <TouchableOpacity 
-                            style={[styles.revisorActionBtn, styles.revisorRejectBtn]}
+                            style={[styles.revisorActionBtn, styles.revisorRejectBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                             onPress={() => handleRejectClient(client.identificador, revisorReasons[client.identificador] || '')}
                           >
-                            <Text style={styles.revisorBtnText}>✕ Rechazar</Text>
+                            <Feather name="x" size={14} color={COLORS.textWhite} style={{ marginRight: 6 }} />
+                            <Text style={styles.revisorBtnText}>Rechazar</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1424,7 +1470,7 @@ export default function App() {
           style={styles.navItem} 
           onPress={() => setActiveTab('home')}
         >
-          <Text style={[styles.navIcon, activeTab === 'home' && styles.activeNavIcon]}>🏠</Text>
+          <Feather name="home" size={20} color={activeTab === 'home' ? COLORS.secondary : COLORS.lightGray200} />
           <Text style={[styles.navText, activeTab === 'home' && styles.activeNavText]}>Home</Text>
         </TouchableOpacity>
 
@@ -1432,7 +1478,7 @@ export default function App() {
           style={styles.navItem} 
           onPress={() => setActiveTab('subastas')}
         >
-          <Text style={[styles.navIcon, activeTab === 'subastas' && styles.activeNavIcon]}>🔨</Text>
+          <FontAwesome5 name="gavel" size={18} color={activeTab === 'subastas' ? COLORS.secondary : COLORS.lightGray200} />
           <Text style={[styles.navText, activeTab === 'subastas' && styles.activeNavText]}>Subastas</Text>
         </TouchableOpacity>
 
@@ -1461,7 +1507,7 @@ export default function App() {
           style={styles.navItem} 
           onPress={() => setActiveTab('articulos')}
         >
-          <Text style={[styles.navIcon, activeTab === 'articulos' && styles.activeNavIcon]}>📦</Text>
+          <Feather name="package" size={20} color={activeTab === 'articulos' ? COLORS.secondary : COLORS.lightGray200} />
           <Text style={[styles.navText, activeTab === 'articulos' && styles.activeNavText]}>Artículos</Text>
         </TouchableOpacity>
 
@@ -1469,7 +1515,7 @@ export default function App() {
           style={styles.navItem} 
           onPress={() => setActiveTab('perfil')}
         >
-          <Text style={[styles.navIcon, activeTab === 'perfil' && styles.activeNavIcon]}>👤</Text>
+          <Feather name="user" size={20} color={activeTab === 'perfil' ? COLORS.secondary : COLORS.lightGray200} />
           <Text style={[styles.navText, activeTab === 'perfil' && styles.activeNavText]}>Perfil</Text>
         </TouchableOpacity>
       </View>
@@ -1504,15 +1550,21 @@ export default function App() {
         transparent={true}
         onRequestClose={() => setShowAddPaymentModal(false)}
       >
-        <View style={styles.selectorOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.selectorOverlay}
+        >
           <View style={styles.paymentModalContent}>
             <View style={styles.paymentModalHeader}>
-              <Text style={styles.paymentModalTitle}>💳 Medio de Pago</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="credit-card" size={20} color={COLORS.white} style={{ marginRight: 8 }} />
+                <Text style={[styles.paymentModalTitle, { marginBottom: 0 }]}>Medio de Pago</Text>
+              </View>
               <TouchableOpacity 
                 style={styles.closeButtonMini}
                 onPress={() => setShowAddPaymentModal(false)}
               >
-                <Text style={{ color: COLORS.lightGray200, fontWeight: 'bold' }}>✕</Text>
+                <Feather name="x" size={16} color={COLORS.lightGray200} />
               </TouchableOpacity>
             </View>
 
@@ -1541,7 +1593,7 @@ export default function App() {
             <View style={styles.providerRow}>
               {[
                 { key: 'tarjeta', label: 'Tarjeta' },
-                { key: 'cuenta', label: 'CBU / Cuenta' }
+                { key: 'cuenta', label: 'CBU' }
               ].map((t) => {
                 const isSelected = newCardType === t.key;
                 return (
@@ -1559,14 +1611,14 @@ export default function App() {
             </View>
 
             <Text style={styles.inputLabel}>
-              {newCardType === 'tarjeta' ? 'Número de Tarjeta (16 dig.)' : 'CBU o Alias de Cuenta'}
+              {newCardType === 'tarjeta' ? 'Número de Tarjeta (16 dig.)' : 'CBU de Cuenta (22 dig.)'}
             </Text>
             <TextInput
               style={styles.input}
               placeholder={newCardType === 'tarjeta' ? '4517849210325541' : '0070089230009102938472'}
               placeholderTextColor={COLORS.lightGray200}
               value={newCardNumber}
-              onChangeText={setNewCardNumber}
+              onChangeText={(text) => setNewCardNumber(text.replace(/[^0-9]/g, ''))}
               keyboardType="numeric"
               maxLength={newCardType === 'tarjeta' ? 16 : 22}
             />
@@ -1583,7 +1635,7 @@ export default function App() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Change Password Modal */}
@@ -1593,15 +1645,21 @@ export default function App() {
         transparent={true}
         onRequestClose={() => setShowChangePasswordModal(false)}
       >
-        <View style={styles.selectorOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.selectorOverlay}
+        >
           <View style={styles.paymentModalContent}>
             <View style={styles.paymentModalHeader}>
-              <Text style={styles.paymentModalTitle}>🔒 Cambiar Contraseña</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="lock" size={20} color={COLORS.white} style={{ marginRight: 8 }} />
+                <Text style={[styles.paymentModalTitle, { marginBottom: 0 }]}>Cambiar Contraseña</Text>
+              </View>
               <TouchableOpacity 
                 style={styles.closeButtonMini}
                 onPress={() => setShowChangePasswordModal(false)}
               >
-                <Text style={{ color: COLORS.lightGray200, fontWeight: 'bold' }}>✕</Text>
+                <Feather name="x" size={16} color={COLORS.lightGray200} />
               </TouchableOpacity>
             </View>
 
@@ -1689,7 +1747,7 @@ export default function App() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

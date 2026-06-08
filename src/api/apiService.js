@@ -407,6 +407,14 @@ export const apiService = {
   // Pre-Register handler
   async preRegister(userData) {
     const cleanEmail = userData.mail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      throw new Error('El correo electrónico no es válido.');
+    }
+    const docRegex = /^[0-9]{7,9}$/;
+    if (!docRegex.test((userData.documento || '').trim())) {
+      throw new Error('El documento debe ser puramente numérico y tener entre 7 y 9 dígitos.');
+    }
     if (!isSupabaseConfigured()) {
       console.log('[ApiService] Running Mock pre-register.');
       preRegisteredEmails.add(cleanEmail);

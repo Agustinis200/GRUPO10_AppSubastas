@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView, 
   Platform 
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { supabaseService } from '../api/supabaseService';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
 
@@ -162,7 +163,10 @@ export default function AuctionDetailModal({ visible, auction, onClose, onBidSuc
 
             {/* Cobertura y Seguro policy display */}
             <View style={styles.historyDetailBox}>
-              <Text style={styles.historyDetailTitle}>🛡️ Cobertura y Seguro</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Feather name="shield" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                <Text style={[styles.historyDetailTitle, { marginBottom: 0 }]}>Cobertura y Seguro</Text>
+              </View>
               {auction.producto.poliza ? (
                 <View>
                   <View style={styles.historyDetailRow}>

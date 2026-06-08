@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { apiService } from '../api/apiService';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
+import { Feather } from '@expo/vector-icons';
 
 export default function NotificationCenterModal({ visible, userId, onClose }) {
   const [notifications, setNotifications] = useState([]);
@@ -56,7 +57,10 @@ export default function NotificationCenterModal({ visible, userId, onClose }) {
         <View style={styles.modalContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>🔔 Notificaciones</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="bell" size={22} color={COLORS.white} style={{ marginRight: 8 }} />
+              <Text style={styles.title}>Notificaciones</Text>
+            </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
@@ -67,7 +71,7 @@ export default function NotificationCenterModal({ visible, userId, onClose }) {
             <ActivityIndicator size="large" color={COLORS.primary} style={styles.loader} />
           ) : notifications.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📭</Text>
+              <Feather name="inbox" size={48} color={COLORS.lightGray200} style={{ marginBottom: 16 }} />
               <Text style={styles.emptyText}>No tienes notificaciones en este momento.</Text>
             </View>
           ) : (
