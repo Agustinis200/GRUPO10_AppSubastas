@@ -1,43 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
+import { Feather } from '@expo/vector-icons';
+import { isSubastaClosed, isSubastaNotStarted } from '../api/supabaseService';
 
-const CATEGORY_METADATA = {
-  comun: { label: 'Común', color: '#8E8E93' },      // Light Gray 200
-  especial: { label: 'Especial', color: '#9B5DE5' },  // Violet
-  plata: { label: 'Plata', color: '#A0AEC0' },     // Muted Silver
-  oro: { label: 'Oro', color: '#FFB703' },         // Gold
-  platino: { label: 'Platino', color: '#00F5D4' }   // Cyan/Neon
-};
-
-export default function AuctionCard({ auction, onBidPress }) {
+export default function AuctionCard({ auction, onBidPress, isGuest }) {
   const [timeLeft, setTimeLeft] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
+      if (auction.subasta_terminada) {
+        setTimeLeft('Subasta terminada');
+        return;
+      }
+
+      if (auction.subastado === 'si') {
+        setTimeLeft('Objeto subastado');
+        return;
+      }
+
+      const notStarted = auction.estado !== 'abierta' && isSubastaNotStarted(auction.fecha, auction.hora);
+      if (notStarted) {
+        setTimeLeft('No iniciada');
+        return;
+      }
+
+      if (auction.estado === 'bloqueada' || auction.is_locked) {
+        setTimeLeft('Bloqueada');
+        return;
+      }
+
+      const isClosed = auction.estado !== 'abierta' && (auction.estado === 'cerrada' || auction.estado === 'carrada' || isSubastaClosed(auction.fecha, auction.hora));
+      if (isClosed) {
+        setTimeLeft('Cerrada');
+        return;
+      }
+
       const difference = +new Date(auction.ends_at) - +new Date();
       if (difference <= 0) {
-        setTimeLeft('Finalizada');
-        setIsUrgent(false);
+        setTimeLeft('Cerrada');
         return;
       }
 
       const hours = Math.floor(difference / (1000 * 60 * 60));
-      const minutes = Math.floor((difference / 1000 / 60) % 60);
+      const minutes = Math.floor((difference / (1000 * 60)) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
 
-      if (hours < 2) {
-        setIsUrgent(true);
-      } else {
-        setIsUrgent(false);
-      }
+      const pad = (num) => String(num).padStart(2, '0');
 
       let formatted = '';
       if (hours > 0) {
         formatted += `${hours}h `;
       }
-      formatted += `${minutes}m ${seconds}s`;
+      formatted += `${pad(minutes)}min ${pad(seconds)}s`;
       setTimeLeft(formatted);
     };
 
@@ -45,184 +60,159 @@ export default function AuctionCard({ auction, onBidPress }) {
     const timer = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(timer);
-  }, [auction.ends_at]);
+  }, [auction.ends_at, auction.fecha, auction.hora, auction.estado, auction.is_locked, auction.subasta_terminada, auction.subastado]);
 
-  const catMeta = CATEGORY_METADATA[auction.categoria] || { label: auction.categoria, color: COLORS.primary };
+  const moneda = auction.moneda || auction.producto?.moneda || 'ARS';
+  const currencySymbol = moneda === 'USD' ? 'u$s ' : '$ ';
+
+  const comision = auction.comision || ((auction.precio_actual || 0) * 0.1) || 3000;
+  const nextMin = (auction.precio_actual || 0) + Math.max(100, Math.round(comision / 100) * 100);
+
+  const priceDisplay = isGuest ? `${currencySymbol}***` : `${currencySymbol}${Number(auction.precio_actual || auction.preciobase || 0).toLocaleString('es-AR')}`;
+  const nextMinDisplay = isGuest ? `${currencySymbol}***` : `${currencySymbol}${Number(nextMin).toLocaleString('es-AR')}`;
+
+  const getTimerStyle = () => {
+    if (timeLeft === 'Subasta terminada') {
+      return { icon: 'check-circle', color: COLORS.lightGray200 };
+    }
+    if (timeLeft === 'Objeto subastado') {
+      return { icon: 'check', color: COLORS.success };
+    }
+    if (timeLeft === 'Bloqueada') {
+      return { icon: 'lock', color: COLORS.danger };
+    }
+    if (timeLeft === 'No iniciada') {
+      return { icon: 'calendar', color: COLORS.primary };
+    }
+    if (timeLeft === 'Cerrada') {
+      return { icon: 'x-circle', color: COLORS.lightGray200 };
+    }
+    return { icon: 'clock', color: COLORS.secondary };
+  };
+
+  const timerStyle = getTimerStyle();
 
   return (
-    <View style={styles.card}>
-      <Image source={{ uri: auction.producto.image_url }} style={styles.image} />
-      
-      <View style={[styles.categoryBadge, { backgroundColor: catMeta.color }]}>
-        <Text style={styles.categoryText}>{catMeta.label}</Text>
-      </View>
-
-      {auction.en_vivo && (
-        <View style={styles.liveBadge}>
-          <Text style={styles.liveText}>● EN VIVO</Text>
-        </View>
-      )}
-
-      <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={1}>{auction.producto.titulo}</Text>
-        <Text style={styles.seller}>Por {auction.producto.seller_name || 'Vendedor'}</Text>
+    <TouchableOpacity 
+      style={styles.card}
+      onPress={() => onBidPress(auction)}
+      activeOpacity={0.8}
+    >
+      <View style={styles.row}>
+        <Image source={{ uri: auction.producto.image_url }} style={styles.image} />
         
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Precio Actual</Text>
-            <Text style={styles.bidAmount}>${auction.precio_actual.toLocaleString()}</Text>
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={2}>
+            {auction.producto.titulo}
+          </Text>
+          
+          <View style={styles.statsRow}>
+            <View style={styles.statColumn}>
+              <Text style={styles.statLabel}>Precio base</Text>
+              <Text style={styles.statValueBlue}>
+                {priceDisplay}
+              </Text>
+            </View>
+            
+            <View style={[styles.statColumn, { alignItems: 'flex-end' }]}>
+              <Text style={styles.statLabel}>Moneda</Text>
+              <Text style={styles.statValueGray}>{moneda === 'USD' ? 'Dólar' : 'Peso'}</Text>
+              
+              <View style={styles.timerRow}>
+                <Feather name={timerStyle.icon} size={14} color={timerStyle.color} style={{ marginRight: 4 }} />
+                <Text style={[styles.timerText, { color: timerStyle.color }]}>{timeLeft}</Text>
+              </View>
+            </View>
           </View>
-          <View style={[styles.statBox, styles.rightStat]}>
-            <Text style={styles.statLabel}>Ofertas</Text>
-            <Text style={styles.statValue}>{auction.bid_count}</Text>
-          </View>
-        </View>
-
-        <View style={styles.footer}>
-          <View style={styles.timerContainer}>
-            <Text style={styles.statLabel}>Tiempo Restante</Text>
-            <Text style={[styles.timerText, isUrgent && styles.urgentText]}>
-              {timeLeft}
-            </Text>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.bidButton, timeLeft === 'Finalizada' && styles.disabledButton]}
-            onPress={() => onBidPress(auction)}
-            disabled={timeLeft === 'Finalizada'}
-          >
-            <Text style={styles.bidButtonText}>Pujar</Text>
-          </TouchableOpacity>
         </View>
       </View>
-    </View>
+      
+      <View style={styles.divider} />
+      
+      <Text style={styles.footerText}>
+        {auction.bid_count} {auction.bid_count === 1 ? 'puja' : 'pujas'} - Mínima siguiente: {nextMinDisplay}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.darkGray500,
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOWS.default,
-  },
-  image: {
-    width: '100%',
-    height: 180,
-    resizeMode: 'cover',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: 15,
-    left: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  categoryText: {
-    color: '#0F0F1A',
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  liveBadge: {
-    position: 'absolute',
-    top: 15,
-    right: 15,
-    backgroundColor: COLORS.danger,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  liveText: {
-    color: COLORS.textWhite,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  content: {
-    padding: 20,
-  },
-  title: {
-    color: COLORS.white,
-    fontSize: FONTS.sizeXl,
-    fontWeight: FONTS.weightBold,
-    marginBottom: 4,
-  },
-  seller: {
-    color: COLORS.lightGray200,
-    fontSize: FONTS.sizeMd,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFE0C2',
+    padding: 14,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.borderMuted,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  statBox: {
-    flex: 1,
-  },
-  rightStat: {
-    alignItems: 'flex-end',
-  },
-  statLabel: {
-    color: COLORS.lightGray200,
-    fontSize: FONTS.sizeSm,
-    textTransform: 'uppercase',
-    fontWeight: FONTS.weightMedium,
-    marginBottom: 4,
-  },
-  bidAmount: {
-    color: COLORS.secondary, // Naranja
-    fontSize: FONTS.sizeXl,
-    fontWeight: FONTS.weightExtraBold,
-  },
-  statValue: {
-    color: COLORS.white,
-    fontSize: FONTS.sizeLg,
-    fontWeight: FONTS.weightBold,
-  },
-  footer: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  timerContainer: {
+  image: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    resizeMode: 'cover',
+  },
+  content: {
     flex: 1,
+    marginLeft: 14,
+  },
+  title: {
+    color: '#FF8C00',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  statColumn: {
+    flex: 0.5,
+  },
+  statLabel: {
+    color: '#8E8E93',
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  statValueBlue: {
+    color: '#0A5CFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  statValueGray: {
+    color: '#636366',
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
   },
   timerText: {
-    color: COLORS.success,
-    fontSize: FONTS.sizeBase,
-    fontWeight: FONTS.weightBold,
+    color: '#FF8C00',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  urgentText: {
-    color: COLORS.danger,
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5EA',
+    marginVertical: 10,
   },
-  bidButton: {
-    backgroundColor: COLORS.primary, // Azul Cobalto
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 12,
-    ...SHADOWS.glow,
-  },
-  disabledButton: {
-    backgroundColor: COLORS.textDisabled,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  bidButtonText: {
-    color: COLORS.textWhite,
-    fontWeight: FONTS.weightBold,
-    fontSize: FONTS.sizeBase,
+  footerText: {
+    color: '#3A3A3C',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
+

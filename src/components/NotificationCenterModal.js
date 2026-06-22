@@ -37,7 +37,6 @@ export default function NotificationCenterModal({ visible, userId, onClose }) {
   const handleMarkAsRead = async (id) => {
     try {
       await apiService.markNotificationAsRead(id);
-      // Update local state
       setNotifications(prev => 
         prev.map(n => n.identificador === id ? { ...n, leido: 'si' } : n)
       );

@@ -1,0 +1,1184 @@
+openapi: 3.0.3
+
+info:
+  title: Sistema de Subastas API
+  version: '1'
+  description: API REST para gestión de subastas online.
+
+servers:
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/uade-0eb/Grupo11APIRest/1
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/natura-cba/api-subastas/3.0.0
+  - url: https://api.subastas.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Payment Methods
+  - name: Auctions
+  - name: Items
+  - name: Bids
+  - name: Payments
+  - name: Penalties
+  - name: Sell Requests
+  - name: Insurance
+  - name: Notifications
+  - name: Metrics
+
+paths:
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login de usuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "juan@mail.com"
+              password: "123456"
+      responses:
+        "200":
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "401":
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/pre-register:
+    post:
+      tags: [Users]
+      summary: Registro inicial del postor
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreRegisterRequest'
+      responses:
+        "201":
+          description: Solicitud de registro creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "400":
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/complete-registration:
+    post:
+      tags: [Users]
+      summary: Completar registro y generar clave personal
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteRegistrationRequest'
+      responses:
+        "200":
+          description: Registro completado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "400":
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Obtener perfil del usuario logueado
+      responses:
+        "200":
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /payment-methods:
+    get:
+      tags: [Payment Methods]
+      summary: Listar medios de pago del usuario
+      responses:
+        "200":
+          description: Medios de pago
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethod'
+
+    post:
+      tags: [Payment Methods]
+      summary: Registrar medio de pago
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodRequest'
+      responses:
+        "201":
+          description: Medio de pago registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+        "400":
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment-methods/{id}:
+    delete:
+      tags: [Payment Methods]
+      summary: Eliminar medio de pago
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Medio de pago eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "404":
+          description: Medio de pago no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auctions:
+    get:
+      tags: [Auctions]
+      summary: Listar subastas
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [abierta, cerrada]
+        - name: categoria
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Category'
+      responses:
+        "200":
+          description: Lista de subastas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Auction'
+
+  /auctions/{id}:
+    get:
+      tags: [Auctions]
+      summary: Ver detalle de una subasta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detalle de subasta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuctionDetail'
+        "404":
+          description: Subasta no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auctions/{id}/join:
+    post:
+      tags: [Auctions]
+      summary: Ingresar como asistente a una subasta
+      description: Valida categoría del usuario, registro aprobado, medio de pago, y que no este conectado a otra subasta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Usuario ingresó a la subasta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assistant'
+        "403":
+          description: El usuario no cumple los requisitos para ingresar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auctions/{id}/leave:
+    post:
+      tags: [Auctions]
+      summary: Salir de una subasta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Usuario salió de la subasta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /items/{id}:
+    get:
+      tags: [Items]
+      summary: Ver detalle de un ítem de catálogo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detalle del ítem
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogItem'
+        "404":
+          description: Ítem no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /items/{id}/bids:
+    get:
+      tags: [Bids]
+      summary: Ver historial de pujas de un ítem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Historial de pujas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bid'
+
+  /items/{id}/current-bid:
+    get:
+      tags: [Bids]
+      summary: Ver puja actual más alta de un ítem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Puja actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bid'
+
+  /bids:
+    post:
+      tags: [Bids]
+      summary: Crear puja
+      description: |
+        Reglas:
+        - El usuario debe estar registrado y admitido.
+        - El usuario debe haber ingresado como asistente a la subasta.
+        - Debe tener al menos un medio de pago verificado para poder pujar.
+        - No debe estar conectado a otra subasta
+        - La oferta debe ser mayor a la mejor oferta actual.
+        - La oferta mínima es la mejor oferta actual + 1% del precio base.
+        - La oferta máxima es la mejor oferta actual + 20% del precio base.
+        - Los límites del 1% y 20% no aplican para subastas oro y platino.
+        - No se permite enviar otra puja hasta recibir confirmación del sistema.
+        - El usuario ingresa el importe manualmente desde la app.
+        - La acción requiere confirmación previa en la interfaz.
+        - Si el usuario posee un cheque certificado como garantía,
+        la suma de sus ofertas activas no puede superar el monto garantizado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BidRequest'
+            example:
+              asistente_id: 1
+              item_catalogo_id: 10
+              importe: 15100
+      responses:
+        "201":
+          description: Puja registrada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bid'
+        "400":
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Usuario no habilitado para pujar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: La puja no cumple las reglas de negocio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me/bids:
+    get:
+      tags: [Bids]
+      summary: Ver mis pujas
+      responses:
+        "200":
+          description: Pujas realizadas por el usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bid'
+
+  /payments:
+    post:
+      tags: [Payments]
+      summary: Generar pago por una compra ganada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        "201":
+          description: Pago generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/{id}/confirm:
+    post:
+      tags: [Payments]
+      summary: Confirmar pago
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pago confirmado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "409":
+          description: No se pudo confirmar el pago
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /penalties:
+    get:
+      tags: [Penalties]
+      summary: Ver multas del usuario
+      responses:
+        "200":
+          description: Multas del usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Penalty'
+
+  /penalties/{id}/pay:
+    post:
+      tags: [Penalties]
+      summary: Pagar multa
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Multa pagada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /sell-requests:
+    get:
+      tags: [Sell Requests]
+      summary: Listar solicitudes propias de venta
+      responses:
+        "200":
+          description: Solicitudes de venta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellRequest'
+
+    post:
+      tags: [Sell Requests]
+      summary: Solicitar inclusión de un producto en una subasta
+      description: El usuario declara que el bien le pertenece y que no posee impedimentos para subastarlo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/SellRequestRequest'
+      responses:
+        "201":
+          description: Solicitud creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellRequest'
+        "400":
+          description: Datos inválidos o menos de 6 fotos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sell-requests/{id}:
+    get:
+      tags: [Sell Requests]
+      summary: Ver detalle de solicitud de venta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detalle de solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellRequest'
+          
+  /users/me/sell-requests:
+    get:
+      tags: [Sell Requests]
+      summary: Listar artículos enviados por el usuario
+      responses:
+        "200":
+          description: Lista de artículos enviados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sell_request:
+                      $ref: '#/components/schemas/SellRequest'
+                    insurance:
+                      $ref: '#/components/schemas/Insurance'
+                    location:
+                      $ref: '#/components/schemas/LocationResponse'
+
+  /sell-requests/{id}/accept-terms:
+    post:
+      tags: [Sell Requests]
+      summary: Aceptar valor base y comisión propuestos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Condiciones aceptadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /sell-requests/{id}/reject-terms:
+    post:
+      tags: [Sell Requests]
+      summary: Rechazar valor base o comisión propuesta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Condiciones rechazadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /items/{id}/insurance:
+    get:
+      tags: [Insurance]
+      summary: Ver póliza de seguro de un producto
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Seguro del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Insurance'
+
+  /items/{id}/location:
+    get:
+      tags: [Items]
+      summary: Ver ubicación del producto entregado
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ubicación del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationResponse'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Listar notificaciones del usuario
+      responses:
+        "200":
+          description: Notificaciones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Marcar notificación como leída
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notificación marcada como leída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /users/me/stats:
+    get:
+      tags: [Metrics]
+      summary: Ver métricas personales de participación
+      responses:
+        "200":
+          description: Métricas del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    Category:
+      type: string
+      enum: [comun, especial, plata, oro, platino]
+
+    YesNo:
+      type: string
+      enum: [si, no]
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: "juan@mail.com"
+        password:
+          type: string
+          example: "123456"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "jwt-token"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operación realizada correctamente"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "No cumple las condiciones requeridas"
+
+    PreRegisterRequest:
+      type: object
+      required:
+        - documento
+        - nombre
+        - direccion
+        - pais_id
+        - mail
+        - foto_documento_frente
+        - foto_documento_dorso
+      properties:
+        documento:
+          type: string
+          example: "40111222"
+        nombre:
+          type: string
+          example: "Juan Pérez"
+        direccion:
+          type: string
+          example: "Av. Siempre Viva 123"
+        pais_id:
+          type: integer
+          example: 32
+        mail:
+          type: string
+          example: juan@mail.com
+        foto_documento_frente:
+          type: string
+          format: byte
+        foto_documento_dorso:
+          type: string
+          format: byte
+
+    CompleteRegistrationRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: "juan@mail.com"
+        password:
+          type: string
+          example: "123456"
+
+    User:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        documento:
+          type: string
+          example: "40111222"
+        nombre:
+          type: string
+          example: "Juan Pérez"
+        direccion:
+          type: string
+          example: "Av. Siempre Viva 123"
+        estado:
+          type: string
+          enum: [activo, inactivo]
+        admitido:
+          $ref: '#/components/schemas/YesNo'
+        categoria:
+          $ref: '#/components/schemas/Category'
+
+    PaymentMethod:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        tipo:
+          type: string
+          enum: [tarjeta, cuenta_bancaria, cheque_certificado]
+        moneda:
+          type: string
+          enum: [ARS, USD]
+        verificado:
+          type: boolean
+          example: true
+        monto_garantia:
+          type: number
+          format: double
+          example: 500000
+
+    PaymentMethodRequest:
+      type: object
+      required: [tipo, moneda]
+      properties:
+        tipo:
+          type: string
+          enum: [tarjeta, cuenta_bancaria, cheque_certificado]
+        moneda:
+          type: string
+          enum: [ARS, USD]
+        numero:
+          type: string
+          example: "**** **** **** 1234"
+        banco:
+          type: string
+          example: "Banco Nación"
+        monto_garantia:
+          type: number
+          format: double
+          example: 500000
+
+    Auction:
+      type: object
+      properties:
+        identificador:
+          type: integer
+
+        fecha:
+          type: string
+
+        hora:
+          type: string
+
+        estado:
+          type: string
+          enum: [abierta, cerrada]
+
+        en_vivo:
+          type: boolean
+          example: true
+
+        tiempo_restante_segundos:
+          type: integer
+          example: 3600
+
+        precio_actual:
+          type: number
+          example: 15000
+
+        categoria:
+          $ref: '#/components/schemas/Category'
+
+    Assistant:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        numero_postor:
+          type: integer
+          example: 25
+        cliente_id:
+          type: integer
+          example: 1
+        subasta_id:
+          type: integer
+          example: 3
+
+    AuctionDetail:
+      type: object
+      properties:
+        identificador:
+          type: integer
+
+        fecha:
+          type: string
+
+        hora:
+          type: string
+
+        estado:
+          type: string
+          enum: [abierta, cerrada]
+
+        categoria:
+          $ref: '#/components/schemas/Category'
+
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogItem'
+
+    CatalogItem:
+      properties:
+        producto:
+          $ref: '#/components/schemas/Product'
+
+    Product:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 22
+
+        titulo:
+          type: string
+          example: "Juego de té antiguo"
+
+        descripcion:
+          type: string
+          example: "Juego de té de porcelana de 18 piezas"
+
+        historia:
+          $ref: '#/components/schemas/ItemHistory'
+
+        duenio_id:
+          type: integer
+          example: 8
+
+        insurance_id:
+          type: integer
+    
+    ItemHistory:
+      type: object
+      properties:
+        artista:
+          type: string
+          example: "Pablo Picasso"
+        anio:
+          type: string
+          example: "1952"
+        contexto:
+          type: string
+          example: "Período cubista tardío"
+
+    BidRequest:
+      type: object
+      required:
+        - asistente_id
+        - item_catalogo_id
+        - importe
+      properties:
+        asistente_id:
+          type: integer
+          example: 1
+        item_catalogo_id:
+          type: integer
+          example: 10
+        importe:
+          type: number
+          format: double
+          example: 15100
+
+    Bid:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        asistente_id:
+          type: integer
+          example: 1
+        item_catalogo_id:
+          type: integer
+          example: 10
+        importe:
+          type: number
+          format: double
+          example: 15100
+        ganador:
+          $ref: '#/components/schemas/YesNo'
+
+    PaymentRequest:
+      type: object
+      required: [bid_id, medio_pago_id]
+      properties:
+        bid_id:
+          type: integer
+          example: 10
+        medio_pago_id:
+          type: integer
+        retiro_personal:
+          type: boolean
+
+    Payment:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        importe:
+          type: number
+          format: double
+          example: 15100
+        comision:
+          type: number
+          format: double
+          example: 1500
+        costo_envio:
+          type: number
+          format: double
+          example: 3000
+        estado:
+          type: string
+          enum: [pendiente, confirmado, rechazado]
+
+    Penalty:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        importe:
+          type: number
+          format: double
+          example: 1510
+        porcentaje:
+          type: number
+          example: 10
+        estado:
+          type: string
+          enum: [pendiente, pagada]
+        plazo_regularizacion_horas:
+          type: integer
+          example: 72
+
+    SellRequestRequest:
+      type: object
+      required:
+        - titulo_articulo
+        - fotos
+        - descripcion
+        - valor_estimado
+        - moneda
+        - terminos_y_condiciones
+      properties:
+        titulo_articulo:
+          type: string
+          example: "Juego de té antiguo"
+
+        fotos:
+          type: array
+          minItems: 6
+          items:
+            type: string
+            format: byte
+
+        descripcion:
+          type: string
+          example: "Juego de té de porcelana de 18 piezas"
+
+        valor_estimado:
+          type: number
+          example: 15000
+
+        moneda:
+          type: string
+          enum: [ARS, USD]
+
+        tiene_historia:
+          type: boolean
+          example: true
+
+        historia:
+          allOf:
+            - $ref: '#/components/schemas/ItemHistory'
+          nullable: true
+
+        terminos_y_condiciones:
+          type: boolean
+          example: true
+
+    SellRequest:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+
+        producto:
+          $ref: '#/components/schemas/Product'
+
+        estado:
+          type: string
+          enum:
+            - pendiente
+            - en_revision
+            - aceptada
+            - rechazada
+            - condiciones_pendientes
+            - condiciones_aceptadas
+
+        motivo_rechazo:
+          type: string
+
+        valor_base_propuesto:
+          type: number
+          format: double
+
+        comision_propuesta:
+          type: number
+          format: double
+
+    Insurance:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        nro_poliza:
+          type: string
+          example: "POL-123"
+        compania:
+          type: string
+          example: "Seguros Argentina"
+        telefono:
+          type: string
+          example: "+54 11 1234 5678"
+        direccion:
+          type: string
+          example: "Av. Corrientes 1234, CABA"
+        importe:
+          type: number
+          format: double
+          example: 10000
+        duenio_id:
+          type: integer
+          example: 8
+
+    LocationResponse:
+      type: object
+      properties:
+        producto_id:
+          type: integer
+          example: 22
+        deposito:
+          type: string
+          example: "Depósito Central"
+        direccion:
+          type: string
+          example: "Av. San Martín 2500, CABA"
+
+    Notification:
+      type: object
+      properties:
+        identificador:
+          type: integer
+          example: 1
+        titulo:
+          type: string
+          example: "Puja superada"
+        mensaje:
+          type: string
+          example: "Otro usuario realizó una oferta mayor."
+        tipo:
+          type: string
+          enum: [puja_superada, subasta_ganada, pago_pendiente, multa]
+        leida:
+          type: boolean
+          example: false
+
+    UserStats:
+      type: object
+      properties:
+        subastas_activas:
+          type: integer
+          example: 8
+        subastas_ganadas:
+          type: integer
+          example: 2
+        categoria_actual:
+          $ref: '#/components/schemas/Category'

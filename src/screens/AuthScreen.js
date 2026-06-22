@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -19,20 +19,22 @@ import { apiService } from '../api/apiService';
 import { COLORS, FONTS, SHADOWS } from '../styles/theme';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 
-export default function AuthScreen({ onLoginSuccess }) {
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'pre-register', 'forgot-password', 'reset-password'
+export default function AuthScreen({ onLoginSuccess, onGuestLogin }) {
+  const [authMode, setAuthMode] = useState('login'); 
+  const scrollRef = useRef(null);
   
-  // Shared loading state
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+  
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Login inputs
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Pre-register inputs
   const [regNombre, setRegNombre] = useState('');
   const [regDocumento, setRegDocumento] = useState('');
   const [regDireccion, setRegDireccion] = useState('');
@@ -42,19 +44,16 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [regSelfie, setRegSelfie] = useState(null);
   const [acceptPolicies, setAcceptPolicies] = useState(false);
   
-  // Countries list states
   const [paises, setPaises] = useState([]);
-  const [selectedPais, setSelectedPais] = useState(32); // Default: Argentina
+  const [selectedPais, setSelectedPais] = useState(32); 
   const [selectedPaisNombre, setSelectedPaisNombre] = useState('Argentina');
   const [showCountriesModal, setShowCountriesModal] = useState(false);
 
-  // Recovery & Password Reset inputs
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [recoveryOtp, setRecoveryOtp] = useState('');
   const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
   const [recoveryConfirmNewPassword, setRecoveryConfirmNewPassword] = useState('');
 
-  // Support contact display
   const [showSupportModal, setShowSupportModal] = useState(false);
 
   useEffect(() => {
@@ -65,7 +64,6 @@ export default function AuthScreen({ onLoginSuccess }) {
     try {
       const list = await apiService.getPaises();
       setPaises(list || []);
-      // Map to default
       const defaultCountry = list.find(c => c.numero === 32);
       if (defaultCountry) {
         setSelectedPaisNombre(defaultCountry.nombre);
@@ -177,28 +175,34 @@ export default function AuthScreen({ onLoginSuccess }) {
     setSuccessMessage('');
     if (!regNombre || !regDocumento || !regDireccion || !regEmail) {
       setErrorMessage('Por favor completa todos los campos de texto.');
+      scrollToTop();
       return;
     }
     const docRegex = /^[0-9]{7,9}$/;
     if (!docRegex.test(regDocumento.trim())) {
       setErrorMessage('El documento debe ser puramente numérico y tener entre 7 y 9 dígitos.');
+      scrollToTop();
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(regEmail.trim())) {
       setErrorMessage('Por favor ingresa un correo electrónico válido (debe contener "@" y un dominio como ".com" o similar).');
+      scrollToTop();
       return;
     }
     if (!regDocFrente || !regDocDorso) {
       setErrorMessage('Por favor carga las fotos del DNI (Frente y Dorso).');
+      scrollToTop();
       return;
     }
     if (!regSelfie) {
       setErrorMessage('Por favor tómate una Selfie de validación.');
+      scrollToTop();
       return;
     }
     if (!acceptPolicies) {
       setErrorMessage('Debes aceptar las políticas de privacidad y condiciones de uso.');
+      scrollToTop();
       return;
     }
 
@@ -217,8 +221,8 @@ export default function AuthScreen({ onLoginSuccess }) {
       const result = await apiService.preRegister(payload);
       setLoading(false);
       setSuccessMessage('Registro exitoso. Tu solicitud ha sido enviada. Una vez aprobada por nuestro revisor técnico, recibirás tu contraseña predefinida por correo electrónico.');
+      scrollToTop();
       
-      // Limpiar campos del formulario de pre-registro
       setRegNombre('');
       setRegDocumento('');
       setRegDireccion('');
@@ -231,6 +235,7 @@ export default function AuthScreen({ onLoginSuccess }) {
     } catch (err) {
       setLoading(false);
       setErrorMessage(err.message || 'Error en el pre-registro.');
+      scrollToTop();
     }
   };
 
@@ -287,16 +292,21 @@ export default function AuthScreen({ onLoginSuccess }) {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 50}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView 
+        ref={scrollRef}
+        contentContainerStyle={styles.scrollContent} 
+        keyboardShouldPersistTaps="handled"
+      >
         
         {/* Brand Logo Header */}
         <View style={styles.brandHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            <FontAwesome5 name="gavel" size={28} color={COLORS.white} style={{ marginRight: 10, transform: [{ rotate: '-15deg' }] }} />
-            <Text style={styles.brandTitle}>PujaYa!</Text>
-          </View>
+          <Image 
+            source={require('../../assets/splash-icon.png')} 
+            style={styles.brandLogoImage} 
+          />
           <Text style={styles.brandSubtitle}>Registra ofertas, gana subastas online</Text>
         </View>
 
@@ -369,6 +379,13 @@ export default function AuthScreen({ onLoginSuccess }) {
                 {loading ? <ActivityIndicator color={COLORS.textWhite} /> : <Text style={styles.submitButtonText}>Entrar</Text>}
               </TouchableOpacity>
 
+              <TouchableOpacity 
+                style={[styles.guestButton, { marginTop: 12 }]}
+                onPress={onGuestLogin}
+              >
+                <Text style={styles.guestButtonText}>Ingresar como Invitado</Text>
+              </TouchableOpacity>
+
               <Text style={styles.hintText}>
                 ¿No tienes cuenta? Regístrate en la pestaña "Registro". Una vez aprobada tu cuenta por nuestro revisor técnico, recibirás tu contraseña predefinida por correo.
               </Text>
@@ -426,7 +443,6 @@ export default function AuthScreen({ onLoginSuccess }) {
                 autoCapitalize="none"
               />
 
-              {/* Document Photo Uploads */}
               <Text style={styles.inputLabel}>Fotografía del Documento</Text>
               <View style={styles.photoUploadRow}>
                 <TouchableOpacity style={styles.photoBox} onPress={() => openSelector('frente')}>
@@ -452,7 +468,6 @@ export default function AuthScreen({ onLoginSuccess }) {
                 </TouchableOpacity>
               </View>
 
-              {/* Selfie validation capture */}
               <Text style={styles.inputLabel}>Selfie de Validación (Retrato)</Text>
               <TouchableOpacity style={styles.selfieBox} onPress={() => openSelector('selfie')}>
                 {regSelfie ? (
@@ -465,7 +480,6 @@ export default function AuthScreen({ onLoginSuccess }) {
                 )}
               </TouchableOpacity>
 
-              {/* Accept Policies Checkbox */}
               <TouchableOpacity 
                 style={styles.checkboxRow} 
                 onPress={() => setAcceptPolicies(!acceptPolicies)}
@@ -501,7 +515,6 @@ export default function AuthScreen({ onLoginSuccess }) {
 
 
 
-      {/* Countries Picker Modal */}
       <Modal
         visible={showCountriesModal}
         animationType="slide"
@@ -542,7 +555,6 @@ export default function AuthScreen({ onLoginSuccess }) {
         </View>
       </Modal>
 
-      {/* Support Contact Info Modal */}
       <Modal
         visible={showSupportModal}
         animationType="fade"
@@ -604,11 +616,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
-  brandTitle: {
-    color: COLORS.white,
-    fontSize: 32,
-    fontWeight: FONTS.weightExtraBold,
-    letterSpacing: -1,
+  brandLogoImage: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+    marginBottom: 8,
   },
   brandSubtitle: {
     color: COLORS.lightGray200,
@@ -974,5 +986,20 @@ const styles = StyleSheet.create({
     padding: 4,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  guestButton: {
+    backgroundColor: 'transparent',
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    ...SHADOWS.orangeGlow,
+  },
+  guestButtonText: {
+    color: COLORS.secondary,
+    fontSize: FONTS.sizeBase,
+    fontWeight: FONTS.weightBold,
   },
 });

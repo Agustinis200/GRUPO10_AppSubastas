@@ -1,0 +1,2532 @@
+{
+  "info": {
+    "name": "Sistema de Subastas API",
+    "description": "API REST para gestión de subastas online.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login de usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "Login exitoso",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auth/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"123456\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"token\": \"jwt-token\"\n}"
+            },
+            {
+              "name": "Credenciales inválidas",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auth/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"123456\"\n}"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Registro inicial del postor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/users/pre-register",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "users",
+                "pre-register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"40111222\",\n  \"nombre\": \"Juan Pérez\",\n  \"direccion\": \"Av. Siempre Viva 123\",\n  \"pais_id\": 32,\n  \"mail\": \"juan@mail.com\",\n  \"foto_documento_frente\": \"data:image/jpeg;base64,...\",\n  \"foto_documento_dorso\": \"data:image/jpeg;base64,...\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "Solicitud de registro creada",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/pre-register",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "pre-register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documento\": \"40111222\",\n  \"nombre\": \"Juan Pérez\",\n  \"direccion\": \"Av. Siempre Viva 123\",\n  \"pais_id\": 32,\n  \"mail\": \"juan@mail.com\",\n  \"foto_documento_frente\": \"data:image/jpeg;base64,...\",\n  \"foto_documento_dorso\": \"data:image/jpeg;base64,...\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            },
+            {
+              "name": "Datos inválidos",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/pre-register",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "pre-register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documento\": \"40111222\",\n  \"nombre\": \"Juan Pérez\",\n  \"direccion\": \"Av. Siempre Viva 123\",\n  \"pais_id\": 32,\n  \"mail\": \"juan@mail.com\",\n  \"foto_documento_frente\": \"data:image/jpeg;base64,...\",\n  \"foto_documento_dorso\": \"data:image/jpeg;base64,...\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Completar registro y generar clave personal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/users/complete-registration",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "users",
+                "complete-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "Registro completado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/complete-registration",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "complete-registration"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"123456\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            },
+            {
+              "name": "Datos inválidos",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/complete-registration",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "complete-registration"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"juan@mail.com\",\n  \"password\": \"123456\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Obtener perfil del usuario logueado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/users/me",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Perfil del usuario",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/me",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "me"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"documento\": \"40111222\",\n  \"nombre\": \"Juan Pérez\",\n  \"direccion\": \"Av. Siempre Viva 123\",\n  \"estado\": \"activo\",\n  \"admitido\": \"si\",\n  \"categoria\": \"comun\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment Methods",
+      "item": [
+        {
+          "name": "Listar medios de pago del usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/payment-methods",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "payment-methods"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Medios de pago",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payment-methods",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payment-methods"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"identificador\": 1,\n    \"tipo\": \"tarjeta\",\n    \"moneda\": \"ARS\",\n    \"verificado\": true,\n    \"monto_garantia\": 500000\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Registrar medio de pago",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/payment-methods",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "payment-methods"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"tarjeta\",\n  \"moneda\": \"ARS\",\n  \"numero\": \"**** **** **** 1234\",\n  \"banco\": \"Banco Nación\",\n  \"monto_garantia\": 500000\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "Medio de pago registrado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payment-methods",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payment-methods"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tipo\": \"tarjeta\",\n  \"moneda\": \"ARS\",\n  \"numero\": \"**** **** **** 1234\",\n  \"banco\": \"Banco Nación\",\n  \"monto_garantia\": 500000\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"tipo\": \"tarjeta\",\n  \"moneda\": \"ARS\",\n  \"verificado\": true,\n  \"monto_garantia\": 500000\n}"
+            },
+            {
+              "name": "Datos inválidos",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payment-methods",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payment-methods"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tipo\": \"tarjeta\",\n  \"moneda\": \"ARS\",\n  \"numero\": \"**** **** **** 1234\",\n  \"banco\": \"Banco Nación\",\n  \"monto_garantia\": 500000\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Eliminar medio de pago",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/payment-methods/1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "payment-methods",
+                "1"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Medio de pago eliminado",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payment-methods/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payment-methods",
+                    "1"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            },
+            {
+              "name": "Medio de pago no encontrado",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payment-methods/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payment-methods",
+                    "1"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auctions",
+      "item": [
+        {
+          "name": "Listar subastas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/auctions?estado=abierta&categoria=comun",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "auctions"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "abierta"
+                },
+                {
+                  "key": "categoria",
+                  "value": "comun"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Lista de subastas",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auctions?estado=abierta&categoria=comun",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auctions"
+                  ],
+                  "query": [
+                    {
+                      "key": "estado",
+                      "value": "abierta"
+                    },
+                    {
+                      "key": "categoria",
+                      "value": "comun"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"identificador\": 1,\n    \"fecha\": \"string\",\n    \"hora\": \"string\",\n    \"estado\": \"abierta\",\n    \"en_vivo\": true,\n    \"tiempo_restante_segundos\": 3600,\n    \"precio_actual\": 15000,\n    \"categoria\": \"comun\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Ver detalle de una subasta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/auctions/1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "auctions",
+                "1"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Detalle de subasta",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auctions/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auctions",
+                    "1"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"fecha\": \"string\",\n  \"hora\": \"string\",\n  \"estado\": \"abierta\",\n  \"categoria\": \"comun\",\n  \"items\": [\n    null\n  ]\n}"
+            },
+            {
+              "name": "Subasta no encontrada",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auctions/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auctions",
+                    "1"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Ingresar como asistente a una subasta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/auctions/1/join",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "auctions",
+                "1",
+                "join"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Usuario ingresó a la subasta",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auctions/1/join",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auctions",
+                    "1",
+                    "join"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"numero_postor\": 25,\n  \"cliente_id\": 1,\n  \"subasta_id\": 3\n}"
+            },
+            {
+              "name": "El usuario no cumple los requisitos para ingresar",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auctions/1/join",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auctions",
+                    "1",
+                    "join"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Salir de una subasta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/auctions/1/leave",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "auctions",
+                "1",
+                "leave"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Usuario salió de la subasta",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auctions/1/leave",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auctions",
+                    "1",
+                    "leave"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Items",
+      "item": [
+        {
+          "name": "Ver detalle de un ítem de catálogo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/items/1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "items",
+                "1"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Detalle del ítem",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/items/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "items",
+                    "1"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "null"
+            },
+            {
+              "name": "Ítem no encontrado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/items/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "items",
+                    "1"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Ver ubicación del producto entregado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/items/1/location",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "items",
+                "1",
+                "location"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Ubicación del producto",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/items/1/location",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "items",
+                    "1",
+                    "location"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"producto_id\": 22,\n  \"deposito\": \"Depósito Central\",\n  \"direccion\": \"Av. San Martín 2500, CABA\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bids",
+      "item": [
+        {
+          "name": "Ver historial de pujas de un ítem",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/items/1/bids",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "items",
+                "1",
+                "bids"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Historial de pujas",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/items/1/bids",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "items",
+                    "1",
+                    "bids"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"identificador\": 1,\n    \"asistente_id\": 1,\n    \"item_catalogo_id\": 10,\n    \"importe\": 15100,\n    \"ganador\": \"si\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Ver puja actual más alta de un ítem",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/items/1/current-bid",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "items",
+                "1",
+                "current-bid"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Puja actual",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/items/1/current-bid",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "items",
+                    "1",
+                    "current-bid"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100,\n  \"ganador\": \"si\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Crear puja",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/bids",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "bids"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "Puja registrada correctamente",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/bids",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "bids"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100,\n  \"ganador\": \"si\"\n}"
+            },
+            {
+              "name": "Datos inválidos",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/bids",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "bids"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            },
+            {
+              "name": "Usuario no habilitado para pujar",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/bids",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "bids"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            },
+            {
+              "name": "La puja no cumple las reglas de negocio",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/bids",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "bids"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"asistente_id\": 1,\n  \"item_catalogo_id\": 10,\n  \"importe\": 15100\n}"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Ver mis pujas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/users/me/bids",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "bids"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Pujas realizadas por el usuario",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/me/bids",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "me",
+                    "bids"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"identificador\": 1,\n    \"asistente_id\": 1,\n    \"item_catalogo_id\": 10,\n    \"importe\": 15100,\n    \"ganador\": \"si\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Generar pago por una compra ganada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/payments",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bid_id\": 10,\n  \"medio_pago_id\": 1,\n  \"retiro_personal\": true\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "Pago generado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payments",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bid_id\": 10,\n  \"medio_pago_id\": 1,\n  \"retiro_personal\": true\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"importe\": 15100,\n  \"comision\": 1500,\n  \"costo_envio\": 3000,\n  \"estado\": \"pendiente\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Confirmar pago",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/payments/1/confirm",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "payments",
+                "1",
+                "confirm"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Pago confirmado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payments/1/confirm",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payments",
+                    "1",
+                    "confirm"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            },
+            {
+              "name": "No se pudo confirmar el pago",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/payments/1/confirm",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "payments",
+                    "1",
+                    "confirm"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Penalties",
+      "item": [
+        {
+          "name": "Ver multas del usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/penalties",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "penalties"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Multas del usuario",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/penalties",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "penalties"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"identificador\": 1,\n    \"importe\": 1510,\n    \"porcentaje\": 10,\n    \"estado\": \"pendiente\",\n    \"plazo_regularizacion_horas\": 72\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Pagar multa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/penalties/1/pay",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "penalties",
+                "1",
+                "pay"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Multa pagada",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/penalties/1/pay",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "penalties",
+                    "1",
+                    "pay"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sell Requests",
+      "item": [
+        {
+          "name": "Listar solicitudes propias de venta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/sell-requests",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "sell-requests"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Solicitudes de venta",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sell-requests",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sell-requests"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"producto\": {\n    \"identificador\": 22,\n    \"titulo\": \"Juego de té antiguo\",\n    \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n    \"historia\": {\n      \"artista\": \"Pablo Picasso\",\n      \"anio\": \"1952\",\n      \"contexto\": \"Período cubista tardío\"\n    },\n    \"duenio_id\": 8,\n    \"insurance_id\": 1\n  },\n  \"estado\": \"pendiente\",\n  \"motivo_rechazo\": \"string\",\n  \"valor_base_propuesto\": 1,\n  \"comision_propuesta\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Solicitar inclusión de un producto en una subasta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/sell-requests",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "sell-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"titulo_articulo\": \"Juego de té antiguo\",\n    \"fotos\": [\n      \"data:image/jpeg;base64,...\"\n    ],\n    \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n    \"valor_estimado\": 15000,\n    \"moneda\": \"ARS\",\n    \"tiene_historia\": true,\n    \"historia\": {\n      \"artista\": \"Pablo Picasso\",\n      \"anio\": \"1952\",\n      \"contexto\": \"Período cubista tardío\"\n    },\n    \"terminos_y_condiciones\": true\n  }\n]"
+            }
+          },
+          "response": [
+            {
+              "name": "Solicitud creada",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sell-requests",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sell-requests"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n  {\n    \"titulo_articulo\": \"Juego de té antiguo\",\n    \"fotos\": [\n      \"data:image/jpeg;base64,...\"\n    ],\n    \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n    \"valor_estimado\": 15000,\n    \"moneda\": \"ARS\",\n    \"tiene_historia\": true,\n    \"historia\": {\n      \"artista\": \"Pablo Picasso\",\n      \"anio\": \"1952\",\n      \"contexto\": \"Período cubista tardío\"\n    },\n    \"terminos_y_condiciones\": true\n  }\n]"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"producto\": {\n    \"identificador\": 22,\n    \"titulo\": \"Juego de té antiguo\",\n    \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n    \"historia\": {\n      \"artista\": \"Pablo Picasso\",\n      \"anio\": \"1952\",\n      \"contexto\": \"Período cubista tardío\"\n    },\n    \"duenio_id\": 8,\n    \"insurance_id\": 1\n  },\n  \"estado\": \"pendiente\",\n  \"motivo_rechazo\": \"string\",\n  \"valor_base_propuesto\": 1,\n  \"comision_propuesta\": 1\n}"
+            },
+            {
+              "name": "Datos inválidos o menos de 6 fotos",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sell-requests",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sell-requests"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n  {\n    \"titulo_articulo\": \"Juego de té antiguo\",\n    \"fotos\": [\n      \"data:image/jpeg;base64,...\"\n    ],\n    \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n    \"valor_estimado\": 15000,\n    \"moneda\": \"ARS\",\n    \"tiene_historia\": true,\n    \"historia\": {\n      \"artista\": \"Pablo Picasso\",\n      \"anio\": \"1952\",\n      \"contexto\": \"Período cubista tardío\"\n    },\n    \"terminos_y_condiciones\": true\n  }\n]"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"No cumple las condiciones requeridas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Ver detalle de solicitud de venta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/sell-requests/1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "sell-requests",
+                "1"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Detalle de solicitud",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sell-requests/1",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sell-requests",
+                    "1"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"producto\": {\n    \"identificador\": 22,\n    \"titulo\": \"Juego de té antiguo\",\n    \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n    \"historia\": {\n      \"artista\": \"Pablo Picasso\",\n      \"anio\": \"1952\",\n      \"contexto\": \"Período cubista tardío\"\n    },\n    \"duenio_id\": 8,\n    \"insurance_id\": 1\n  },\n  \"estado\": \"pendiente\",\n  \"motivo_rechazo\": \"string\",\n  \"valor_base_propuesto\": 1,\n  \"comision_propuesta\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar artículos enviados por el usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/users/me/sell-requests",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "sell-requests"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Lista de artículos enviados",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/me/sell-requests",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "me",
+                    "sell-requests"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"sell_request\": {\n      \"identificador\": 1,\n      \"producto\": {\n        \"identificador\": 22,\n        \"titulo\": \"Juego de té antiguo\",\n        \"descripcion\": \"Juego de té de porcelana de 18 piezas\",\n        \"historia\": {\n          \"artista\": \"Pablo Picasso\",\n          \"anio\": \"1952\",\n          \"contexto\": \"Período cubista tardío\"\n        },\n        \"duenio_id\": 8,\n        \"insurance_id\": 1\n      },\n      \"estado\": \"pendiente\",\n      \"motivo_rechazo\": \"string\",\n      \"valor_base_propuesto\": 1,\n      \"comision_propuesta\": 1\n    },\n    \"insurance\": {\n      \"identificador\": 1,\n      \"nro_poliza\": \"POL-123\",\n      \"compania\": \"Seguros Argentina\",\n      \"telefono\": \"+54 11 1234 5678\",\n      \"direccion\": \"Av. Corrientes 1234, CABA\",\n      \"importe\": 10000,\n      \"duenio_id\": 8\n    },\n    \"location\": {\n      \"producto_id\": 22,\n      \"deposito\": \"Depósito Central\",\n      \"direccion\": \"Av. San Martín 2500, CABA\"\n    }\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Aceptar valor base y comisión propuestos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/sell-requests/1/accept-terms",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "sell-requests",
+                "1",
+                "accept-terms"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Condiciones aceptadas",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sell-requests/1/accept-terms",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sell-requests",
+                    "1",
+                    "accept-terms"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Rechazar valor base o comisión propuesta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/sell-requests/1/reject-terms",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "sell-requests",
+                "1",
+                "reject-terms"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Condiciones rechazadas",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sell-requests/1/reject-terms",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sell-requests",
+                    "1",
+                    "reject-terms"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Insurance",
+      "item": [
+        {
+          "name": "Ver póliza de seguro de un producto",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/items/1/insurance",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "items",
+                "1",
+                "insurance"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Seguro del producto",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/items/1/insurance",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "items",
+                    "1",
+                    "insurance"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"identificador\": 1,\n  \"nro_poliza\": \"POL-123\",\n  \"compania\": \"Seguros Argentina\",\n  \"telefono\": \"+54 11 1234 5678\",\n  \"direccion\": \"Av. Corrientes 1234, CABA\",\n  \"importe\": 10000,\n  \"duenio_id\": 8\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Listar notificaciones del usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/notifications",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Notificaciones",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/notifications",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "notifications"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"identificador\": 1,\n    \"titulo\": \"Puja superada\",\n    \"mensaje\": \"Otro usuario realizó una oferta mayor.\",\n    \"tipo\": \"puja_superada\",\n    \"leida\": false\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Marcar notificación como leída",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/1/read",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "notifications",
+                "1",
+                "read"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Notificación marcada como leída",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/notifications/1/read",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "notifications",
+                    "1",
+                    "read"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Operación realizada correctamente\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "item": [
+        {
+          "name": "Ver métricas personales de participación",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/users/me/stats",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "stats"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Métricas del usuario",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/users/me/stats",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "users",
+                    "me",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"subastas_activas\": 8,\n  \"subastas_ganadas\": 2,\n  \"categoria_actual\": \"comun\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://api.subastas.com",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    }
+  ]
+}

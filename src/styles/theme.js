@@ -1,23 +1,23 @@
 // PujaYa! Brand Theme Design System
 export const COLORS = {
   // Brand Primary & Secondary
-  primary: '#0A5CFF',        // Azul Cobalto
-  secondary: '#FF8C00',      // Naranja
+  primary: '#0A5CFF',        
+  secondary: '#FF8C00',      
   
   // Grayscale Palette (Light Theme)
-  white: '#1C1C1E',          // Was white text, now dark gray text
-  textWhite: '#FFFFFF',      // True white for buttons, badges, and status labels
-  lightGray100: '#2C2C2E',   // Was light gray text, now dark slate text
-  lightGray200: '#636366',   // Was muted gray, now slate gray
-  darkGray500: '#FFFFFF',    // Was dark card bg, now white card bg
-  darkGray600: '#F2F2F7',    // Was dark page bg, now light gray page bg
-  panelBackground: '#FFFFFF', // modal background
+  white: '#1C1C1E',          
+  textWhite: '#FFFFFF',      
+  lightGray100: '#2C2C2E',   
+  lightGray200: '#636366',   
+  darkGray500: '#FFFFFF',    
+  darkGray600: '#F2F2F7',    
+  panelBackground: '#FFFFFF', 
   
   // Status Helpers
-  success: '#10B981',        // Emerald Green
-  danger: '#EF4444',         // Red
-  warning: '#FF8C00',        // Orange / Naranja
-  info: '#0A5CFF',           // Cobalt Blue
+  success: '#10B981',        
+  danger: '#EF4444',         
+  warning: '#FF8C00',        
+  info: '#0A5CFF',           
   
   // Opacities & Borders
   border: 'rgba(0, 0, 0, 0.08)',

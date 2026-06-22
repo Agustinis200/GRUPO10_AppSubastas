@@ -8,20 +8,17 @@ export default function SplashLoader({ statusText = 'Iniciando PujaYa!...' }) {
   const pulseAnim = useRef(new Animated.Value(0.85)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Dot animated values for bouncing loader
   const dot1Y = useRef(new Animated.Value(0)).current;
   const dot2Y = useRef(new Animated.Value(0)).current;
   const dot3Y = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fade in
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
     }).start();
 
-    // Pulse animation for logo branding
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -37,7 +34,6 @@ export default function SplashLoader({ statusText = 'Iniciando PujaYa!...' }) {
       ])
     ).start();
 
-    // Staggered bouncing dots animation
     const animateDot = (value) => {
       Animated.loop(
         Animated.sequence([
@@ -68,7 +64,6 @@ export default function SplashLoader({ statusText = 'Iniciando PujaYa!...' }) {
 
   return (
     <View style={styles.container}>
-      {/* Premium blurred glow circles */}
       <View style={[styles.blurCircle, styles.circleLeft]} />
       <View style={[styles.blurCircle, styles.circleRight]} />
 

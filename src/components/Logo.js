@@ -40,7 +40,6 @@ const styles = StyleSheet.create({
   },
   iconText: {
     color: COLORS.white,
-    // Add offset for hammer rotation visual center
     transform: [{ rotate: '-15deg' }],
   },
   textContainer: {
@@ -52,6 +51,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   highlightText: {
-    color: COLORS.secondary, // Orange highlight
+    color: COLORS.secondary,
   },
 });
