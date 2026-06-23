@@ -17,7 +17,6 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Middleware de Autenticación Básico
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -27,8 +26,17 @@ const authMiddleware = (req, res, next) => {
     });
   }
   req.token = authHeader.split(' ')[1];
-  req.userId = 1; // HARDCODED para simplificar la simulación del Postman
-  next();
+  try {
+    const decoded = JSON.parse(Buffer.from(req.token, 'base64').toString('utf8'));
+    if (decoded && decoded.userId) {
+      req.userId = decoded.userId;
+      next();
+    } else {
+      throw new Error('Invalid token');
+    }
+  } catch(e) {
+    return res.status(401).json({ error: "Invalid or malformed token" });
+  }
 };
 
 // ==========================================
@@ -39,15 +47,48 @@ app.post('/auth/login', async (req, res) => {
   const { data, error } = await supabase.from('personas_credenciales')
     .select('*').eq('email', email).eq('passwordhash', password);
   if (error || !data || data.length === 0) return res.status(401).json({ error: "Credenciales inválidas" });
-  res.json({ token: "mock-jwt-token-for-postman" });
+  
+  const token = Buffer.from(JSON.stringify({ userId: data[0].identificador })).toString('base64');
+  res.json({ token });
 });
 
 app.post('/users/pre-register', async (req, res) => {
-  res.status(201).json({ message: "Solicitud de registro creada" });
+  const { documento, nombre, direccion, pais_id, mail } = req.body;
+  const { data: persona, error: errP } = await supabase.from('personas').insert([{
+    documento, nombre, direccion, estado: 'incativo'
+  }]).select('*').single();
+  if (errP) return res.status(400).json({ error: errP.message });
+
+  const { error: errC } = await supabase.from('personas_credenciales').insert([{
+    identificador: persona.identificador, email: mail, numeropais: pais_id
+  }]);
+  if (errC) return res.status(400).json({ error: errC.message });
+
+  // No insertamos en la tabla clientes aquí. Se inserta cuando se admite (ya sea por panel o por completar registro).
+
+  res.status(201).json({ message: "Usuario creado pendiente de admisión", persona_id: persona.identificador });
 });
 
 app.post('/users/complete-registration', async (req, res) => {
-  res.status(200).json({ message: "Registro completado" });
+  const { email, password } = req.body;
+  const { data, error } = await supabase.from('personas_credenciales').update({ passwordhash: password }).eq('email', email).select();
+  if (error) return res.status(400).json({ error: error.message });
+  if (!data || data.length === 0) return res.status(404).json({ error: "Usuario no encontrado para completar registro" });
+  
+  // Admitir automáticamente al usuario sin pasar por el panel de Admin
+  const userId = data[0].identificador;
+  await supabase.from('personas').update({ estado: 'activo' }).eq('identificador', userId);
+  
+  // El frontend espera que el cliente se inserte recién al ser admitido. Usamos upsert por seguridad.
+  await supabase.from('clientes').upsert([{ 
+    identificador: userId, 
+    numeropais: data[0].numeropais || 32, 
+    admitido: 'si', 
+    categoria: 'comun', 
+    verificador: 1 
+  }]);
+
+  res.status(200).json({ message: "Registro completado y usuario admitido automáticamente" });
 });
 
 app.get('/users/me', authMiddleware, async (req, res) => {
@@ -62,8 +103,44 @@ app.get('/users/me', authMiddleware, async (req, res) => {
   });
 });
 
+// Endpoint extra para que puedas Admitir usuarios simulando ser el Administrador desde Postman
+app.post('/admin/users/:id/admit', async (req, res) => {
+  const userId = req.params.id;
+  
+  // 1. Marcar persona como activa
+  const { error: err1 } = await supabase.from('personas').update({ estado: 'activo' }).eq('identificador', userId);
+  if (err1) return res.status(400).json({ error: err1.message });
+  
+  // 2. Marcar cliente como admitido
+  const { error: err2 } = await supabase.from('clientes').update({ admitido: 'si' }).eq('identificador', userId);
+  if (err2) return res.status(400).json({ error: err2.message });
+  
+  res.json({ message: "Usuario admitido correctamente por el Administrador" });
+});
+
+// Endpoint extra para eliminar a un usuario y todos sus datos asociados (limpieza)
+app.delete('/admin/users/:id', async (req, res) => {
+  const userId = req.params.id;
+  // Al borrar de la tabla 'personas', la base de datos de Supabase borrará automáticamente en cascada
+  // al usuario de las tablas 'clientes', 'personas_credenciales', 'duenios', 'asistentes', etc.
+  const { error } = await supabase.from('personas').delete().eq('identificador', userId);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ message: "Usuario y todos sus datos relacionados eliminados correctamente" });
+});
+
 app.get('/users/me/stats', authMiddleware, async (req, res) => {
-  res.json({ subastas_activas: 2, subastas_ganadas: 1, categoria_actual: "comun" });
+  // Subastas activas (abiertas en las que es asistente)
+  const { data: asist } = await supabase.from('asistentes').select('subasta, subastas(estado)').eq('cliente', req.userId);
+  const activas = asist ? asist.filter(a => a.subastas && a.subastas.estado === 'abierta').length : 0;
+  
+  // Subastas ganadas
+  const { data: pujos } = await supabase.from('pujos').select('*, asistentes!inner(cliente)').eq('asistentes.cliente', req.userId).eq('ganador', 'si');
+  const ganadas = pujos ? pujos.length : 0;
+  
+  // Categoria
+  const { data: cliente } = await supabase.from('clientes').select('categoria').eq('identificador', req.userId).single();
+  
+  res.json({ subastas_activas: activas, subastas_ganadas: ganadas, categoria_actual: cliente ? cliente.categoria : 'comun' });
 });
 
 // ==========================================
@@ -139,24 +216,52 @@ app.get('/items/:id', async (req, res) => {
   });
 });
 
-app.get('/items/:id/bids', async (req, res) => {
+app.get('/items/:id/bids', authMiddleware, async (req, res) => {
   const { data, error } = await supabase.from('pujos').select('*').eq('item', req.params.id).order('importe', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data.map(b => ({ identificador: b.identificador, asistente_id: b.asistente, item_catalogo_id: b.item, importe: b.importe, ganador: b.ganador })));
+  if (error) return res.status(400).json({ error: error.message });
+  const mapped = (data || []).map(b => ({
+    identificador: b.identificador,
+    asistente_id: b.asistente,
+    item_catalogo_id: b.item,
+    importe: typeof b.importe === 'string' ? parseFloat(b.importe.replace(/[^0-9.-]+/g,"")) : b.importe,
+    ganador: b.ganador
+  }));
+  res.json(mapped);
 });
 
-app.get('/items/:id/current-bid', async (req, res) => {
+app.get('/items/:id/current-bid', authMiddleware, async (req, res) => {
   const { data, error } = await supabase.from('pujos').select('*').eq('item', req.params.id).order('importe', { ascending: false }).limit(1).single();
-  if (error || !data) return res.status(200).json({});
-  res.json({ identificador: data.identificador, asistente_id: data.asistente, item_catalogo_id: data.item, importe: data.importe, ganador: data.ganador });
+  if (error) {
+    if (error.code === 'PGRST116') return res.status(404).json({ error: "No hay pujas" }); // No rows returned
+    return res.status(400).json({ error: error.message });
+  }
+  if (!data) return res.status(404).json({ error: "No hay pujas" });
+  
+  res.json({
+    identificador: data.identificador,
+    asistente_id: data.asistente,
+    item_catalogo_id: data.item,
+    importe: typeof data.importe === 'string' ? parseFloat(data.importe.replace(/[^0-9.-]+/g,"")) : data.importe,
+    ganador: data.ganador
+  });
 });
 
 app.get('/items/:id/location', async (req, res) => {
-  res.json({ producto_id: req.params.id, deposito: "Depósito Central", direccion: "Av. San Martín 2500" });
+  const { data: item } = await supabase.from('itemscatalogo').select('catalogo, catalogos(subasta, subastas(ubicacion, tienedeposito))').eq('identificador', req.params.id).single();
+  if (!item || !item.catalogos || !item.catalogos.subastas) return res.status(404).json({ error: "Ubicación no encontrada" });
+  
+  const subasta = item.catalogos.subastas;
+  res.json({ deposito: subasta.tienedeposito === 'si' ? "Depósito Central" : "Ubicación Externa", direccion: subasta.ubicacion });
 });
 
 app.get('/items/:id/insurance', async (req, res) => {
-  res.json({ identificador: 1, nro_poliza: "POL-123", compania: "Seguros Arg", importe: 10000 });
+  const { data: item } = await supabase.from('itemscatalogo').select('producto, productos(seguro)').eq('identificador', req.params.id).single();
+  if (!item || !item.productos || !item.productos.seguro) return res.status(404).json({ error: "Seguro no encontrado" });
+  
+  const { data: seguro } = await supabase.from('seguros').select('*').eq('nropoliza', item.productos.seguro).single();
+  if (!seguro) return res.status(404).json({ error: "Poliza no encontrada" });
+  
+  res.json({ identificador: req.params.id, nro_poliza: seguro.nropoliza, compania: seguro.compania, importe: seguro.importe });
 });
 
 // ==========================================
@@ -172,17 +277,41 @@ app.post('/bids', authMiddleware, async (req, res) => {
 app.get('/users/me/bids', authMiddleware, async (req, res) => {
   const { data, error } = await supabase.from('pujos').select('*, asistentes!inner(cliente)').eq('asistentes.cliente', req.userId).order('importe', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data.map(b => ({ identificador: b.identificador, asistente_id: b.asistente, item_catalogo_id: b.item, importe: b.importe, ganador: b.ganador })));
+  res.json(data.map(b => ({ 
+    identificador: b.identificador, 
+    asistente_id: b.asistente, 
+    item_catalogo_id: b.item, 
+    importe: typeof b.importe === 'string' ? parseFloat(b.importe.replace(/[^0-9.-]+/g,"")) : b.importe, 
+    ganador: b.ganador 
+  })));
+});
+
+// Endpoint extra para ver las pujas de CUALQUIER usuario (Administrativo)
+app.get('/admin/users/:id/bids', async (req, res) => {
+  const { data, error } = await supabase.from('pujos').select('*, asistentes!inner(cliente)').eq('asistentes.cliente', req.params.id).order('importe', { ascending: false });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json((data || []).map(b => ({ 
+    identificador: b.identificador, 
+    asistente_id: b.asistente, 
+    item_catalogo_id: b.item, 
+    importe: typeof b.importe === 'string' ? parseFloat(b.importe.replace(/[^0-9.-]+/g,"")) : b.importe, 
+    ganador: b.ganador 
+  })));
 });
 
 // ==========================================
 // PAYMENTS & PENALTIES
 // ==========================================
 app.post('/payments', authMiddleware, async (req, res) => {
-  res.status(201).json({ identificador: 1, importe: 15000, estado: "confirmado" });
+  const { item_id, importe } = req.body;
+  // Simulamos la creación de un registro en multas para el pago
+  const { data, error } = await supabase.from('multas').insert([{ cliente: req.userId, descripcion: 'Pago por artículo', monto: importe || 10000, estado: 'pendiente' }]).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ identificador: data.identificador, importe: data.monto, estado: data.estado });
 });
 
 app.post('/payments/:id/confirm', authMiddleware, async (req, res) => {
+  await supabase.from('multas').update({ estado: 'pagada' }).eq('identificador', req.params.id);
   res.json({ message: "Pago confirmado" });
 });
 
@@ -207,7 +336,8 @@ app.get('/sell-requests', authMiddleware, async (req, res) => {
 });
 
 app.post('/sell-requests', authMiddleware, async (req, res) => {
-  const { titulo_articulo, descripcion, valor_estimado, moneda } = req.body;
+  const body = Array.isArray(req.body) ? req.body[0] : req.body;
+  const { titulo_articulo, descripcion, valor_estimado, moneda } = body;
   const { data: prod, error: err1 } = await supabase.from('productos').insert([{
     descripcioncompleta: titulo_articulo,
     descripcioncatalogo: descripcion,

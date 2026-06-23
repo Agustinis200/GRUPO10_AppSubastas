@@ -888,50 +888,7 @@ export const apiService = {
       
       mockMyProducts.push(newMockProduct);
 
-      // Check count
-      const userProds = mockMyProducts.filter(p => p.duenio === userId);
-      const userProfile = mockUsers.find(u => u.profile?.identificador === userId)?.profile;
-      const userName = userProfile?.nombre || 'Usuario Postor';
-
-      // Check if subasta already exists for this user in mockAuctions
-      const { supabaseService } = require('./supabaseService');
-      const mockAuctionsList = supabaseService.mockAuctions || [];
-      const subExists = mockAuctionsList.some(a => a.producto?.seller_name === userName);
-
-      if (userProds.length >= 5 && !subExists) {
-        console.log(`[ApiService Mock] User reached ${userProds.length} products. Auto-creating mock subasta...`);
-        // Approve all user's products
-        userProds.forEach(p => {
-          p.disponible = 'si';
-          p.propuesta_estado = 'aceptada';
-        });
-
-        const newSubId = Math.floor(Math.random() * 1000) + 100;
-        const subDate = new Date(Date.now() + 11 * 24 * 3600 * 1000).toISOString().split('T')[0];
-
-        userProds.forEach((p, idx) => {
-          mockAuctionsList.push({
-            identificador: Math.floor(Math.random() * 1000) + 2000,
-            subasta_id: newSubId,
-            fecha: subDate,
-            hora: '12:00:00',
-            estado: 'abierta',
-            precio_actual: Number(p.precio_base_propuesto || 1000),
-            bid_count: 0,
-            highest_bidder: 'Nadie',
-            categoria: 'comun',
-            producto: {
-              identificador: p.identificador,
-              titulo: p.titulo || p.descripcioncompleta || 'Artículo',
-              descripcion: p.descripcion || p.descripcioncatalogo || 'Sin descripción',
-              image_url: p.foto || 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80',
-              seller_name: userName
-            }
-          });
-        });
-
-        await this.createNotification(userId, 'Subasta Especial Creada', `¡Felicidades! Has subido ${userProds.length} artículos. Se ha creado una subasta especial a tu nombre ("${userName}") programada para el ${subDate}.`);
-      }
+      // Auto-subasta mock logic removed per user request
 
       return { success: true, productId: newMockProdId };
     }
@@ -1026,111 +983,7 @@ export const apiService = {
         }
       }
 
-      // Check count of user products in Supabase
-      const { count, error: countErr } = await supabase
-        .from('productos')
-        .select('*', { count: 'exact', head: true })
-        .eq('duenio', userId);
-
-      if (countErr) {
-        console.warn('Error counting user products:', countErr.message);
-      } else {
-        const { data: persona } = await supabase
-          .from('personas')
-          .select('nombre')
-          .eq('identificador', userId)
-          .single();
-        const userName = persona?.nombre || 'Usuario';
-
-        // Check if catalog named userName already exists
-        const { data: existingCatalog } = await supabase
-          .from('catalogos')
-          .select('identificador')
-          .eq('descripcion', userName)
-          .maybeSingle();
-
-        if (count >= 5 && !existingCatalog) {
-          console.log(`[ApiService] User has ${count} products. Creating auto-subasta named: ${userName}`);
-
-          // 1. Fetch all user's products
-          const { data: userProds, error: fetchProdsErr } = await supabase
-            .from('productos')
-            .select('identificador')
-            .eq('duenio', userId);
-          
-          if (!fetchProdsErr && userProds) {
-            const prodIds = userProds.map(p => p.identificador);
-            
-            // 2. Approve all these products
-            await supabase
-              .from('productos_detalles')
-              .update({
-                propuesta_estado: 'aceptada',
-                precio_base_propuesto: 1000.00,
-                comision_propuesta: 10.00
-              })
-              .in('identificador', prodIds);
-
-            await supabase
-              .from('productos')
-              .update({ disponible: 'si' })
-              .in('identificador', prodIds);
-
-            // 3. Create subasta
-            const subDate = new Date(Date.now() + 11 * 24 * 3600 * 1000).toISOString().split('T')[0];
-            const { data: newSub, error: subErr } = await supabase
-              .from('subastas')
-              .insert({
-                fecha: subDate,
-                hora: '12:00:00',
-                estado: 'abierta',
-                ubicacion: 'Subasta de ' + userName,
-                capacidadasistentes: 100,
-                tienedeposito: 'no',
-                seguridadpropia: 'no',
-                categoria: 'comun',
-                subastador: null
-              })
-              .select()
-              .single();
-            
-            if (!subErr && newSub) {
-              // 4. Create catalog named after user
-              const { data: catalog, error: catErr } = await supabase
-                .from('catalogos')
-                .insert({
-                  descripcion: userName,
-                  subasta: newSub.identificador,
-                  responsable: 1
-                })
-                .select()
-                .single();
-
-              if (!catErr && catalog) {
-                // 5. Create itemscatalogo for each product
-                for (const pId of prodIds) {
-                  await supabase
-                    .from('itemscatalogo')
-                    .insert({
-                      catalogo: catalog.identificador,
-                      producto: pId,
-                      preciobase: 1000.00,
-                      comision: 10.00,
-                      subastado: 'no'
-                    });
-                }
-              }
-            }
-
-            // 6. Notify user
-            await this.createNotification(
-              userId, 
-              'Subasta Especial Creada', 
-              `¡Felicidades! Has subido ${count} artículos. Se ha creado una subasta especial a tu nombre ("${userName}") programada para el ${subDate}.`
-            );
-          }
-        }
-      }
+      // Auto-subasta logic removed per user request. Products will remain en_revision.
 
       return { success: true, productId: newProduct.identificador };
     } catch (error) {
@@ -1198,22 +1051,41 @@ export const apiService = {
       const firstPhotos = {};
       if (data && data.length > 0) {
         const productIds = data.map(p => p.identificador);
-        const { data: photosData, error: photosError } = await supabase
-          .from('fotos')
-          .select('producto, foto')
-          .in('producto', productIds);
         
-        if (!photosError && photosData) {
-          photosData.forEach(item => {
-            if (!firstPhotos[item.producto]) {
-              firstPhotos[item.producto] = item.foto;
+        // Fast 2-step fetch: Get IDs first, then fetch ONLY the first photo per product
+        const { data: allIds } = await supabase
+          .from('fotos')
+          .select('identificador, producto')
+          .in('producto', productIds)
+          .order('identificador', { ascending: true });
+
+        if (allIds && allIds.length > 0) {
+          const firstIds = [];
+          const seenProds = new Set();
+          for (const row of allIds) {
+            if (!seenProds.has(row.producto)) {
+              firstIds.push(row.identificador);
+              seenProds.add(row.producto);
             }
-          });
+          }
+
+          if (firstIds.length > 0) {
+            const { data: photosData, error: photosError } = await supabase
+              .from('fotos')
+              .select('producto, foto')
+              .in('identificador', firstIds);
+            
+            if (!photosError && photosData) {
+              photosData.forEach(item => {
+                firstPhotos[item.producto] = item.foto;
+              });
+            }
+          }
         }
       }
 
       return (data || []).map(p => {
-        let finalFoto = 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80';
+        let finalFoto = 'https://via.placeholder.com/600x400/E0E0E0/808080?text=Sin+Imagen';
         const productPhoto = firstPhotos[p.identificador];
         if (productPhoto) {
           finalFoto = parseLegacyBytea(productPhoto) || finalFoto;
@@ -2161,7 +2033,7 @@ export const apiService = {
                 subasta_id: subastaId,
                 fecha: new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString().split('T')[0],
                 hora: '15:00:00',
-                estado: 'abierta',
+                estado: null,
                 precio_actual: 1000,
                 bid_count: 0,
                 highest_bidder: 'Nadie',
@@ -2757,7 +2629,7 @@ export const apiService = {
         identificador: newSubId,
         fecha: subastaData.fecha,
         hora: subastaData.hora,
-        estado: 'abierta',
+        estado: null,
         ubicacion: subastaData.ubicacion,
         capacidadasistentes: Number(subastaData.capacidad),
         tienedeposito: subastaData.deposito,
@@ -2780,7 +2652,7 @@ export const apiService = {
                 subasta_id: newSubId,
                 fecha: subastaData.fecha,
                 hora: subastaData.hora,
-                estado: 'abierta',
+                estado: null,
                 precio_actual: Number(p.precio_base_propuesto || 1000),
                 bid_count: 0,
                 highest_bidder: 'Nadie',
@@ -2814,7 +2686,7 @@ export const apiService = {
         .insert({
           fecha: subastaData.fecha,
           hora: subastaData.hora,
-          estado: 'abierta',
+          estado: null,
           ubicacion: subastaData.ubicacion,
           capacidadasistentes: Number(subastaData.capacidad),
           tienedeposito: subastaData.deposito,

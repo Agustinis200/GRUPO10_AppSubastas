@@ -82,10 +82,10 @@ const getSecondsRemaining = (dateStr, timeStr) => {
 };
 
 export const isSubastaClosed = (dateStr, timeStr) => {
-  if (!dateStr) return true;
+  if (!dateStr) return false;
   try {
     const startDateTime = parseDateSafely(dateStr, timeStr);
-    // A subasta is closed if more than 24 hours have passed since its start time
+    // Cierre automático después de 24 horas
     const endDateTime = new Date(+startDateTime + 24 * 3600 * 1000);
     return +endDateTime < +new Date();
   } catch (e) {
@@ -102,12 +102,21 @@ export const isSubastaNotStarted = (dateStr, timeStr) => {
   } catch (e) {
     return true;
   }
+};export const getSubastaFromItem = (item) => {
+  if (!item) return null;
+  let catalogo = item.catalogo;
+  if (Array.isArray(catalogo)) catalogo = catalogo[0];
+  if (!catalogo) return null;
+  
+  let subasta = catalogo.subastas;
+  if (Array.isArray(subasta)) subasta = subasta[0];
+  return subasta || null;
 };
 
 export const mapUiAuctions = (auctionsList) => {
   if (!auctionsList || auctionsList.length === 0) return [];
   
-  // Group by subasta_id
+  // Agrupar por subasta_id
   const groups = {};
   auctionsList.forEach(item => {
     const subId = item.subasta_id || 'default';
@@ -121,28 +130,24 @@ export const mapUiAuctions = (auctionsList) => {
   Object.keys(groups).forEach(subId => {
     const items = groups[subId].sort((a, b) => a.identificador - b.identificador);
     
-    // Find the first item with subastado === 'no'
+    // Buscar primer artículo no subastado
     const activeIndex = items.findIndex(item => item.subastado === 'no');
     const hasUnsoldItems = activeIndex !== -1;
     
     items.forEach((item, idx) => {
+      // Fecha de inicio
       let subastaStart = parseDateSafely(item.fecha, item.hora);
-      
-      // If the subasta is open but scheduled in the future, anchor active item countdown to now
-      if (item.estado === 'abierta' && now < subastaStart && activeIndex !== -1) {
-        subastaStart = new Date(+now - activeIndex * 3 * 60 * 1000);
-      }
 
-      const itemStart = new Date(+subastaStart + idx * 3 * 60 * 1000);
-      const itemEnd = new Date(+subastaStart + (idx + 1) * 3 * 60 * 1000);
+      const itemStart = new Date(+subastaStart + idx * 5 * 60 * 1000);
+      const itemEnd = new Date(+subastaStart + (idx + 1) * 5 * 60 * 1000);
       
-      let estado = item.estado || 'abierta'; // parent subasta state
+      let estado = item.estado;
       let en_vivo = false;
       let tiempo_restante_segundos = 0;
       let is_locked = false;
       let is_closed = false;
       
-      // Parent is active if admin set it to 'abierta' OR time arrived, it is not explicitly 'cerrada' and has unsold items
+      // Activa si está abierta o llegó la hora
       const parentIsActive = (estado === 'abierta') || (now >= subastaStart && estado !== 'cerrada' && hasUnsoldItems);
       
       if (item.subastado === 'si') {
@@ -156,7 +161,7 @@ export const mapUiAuctions = (auctionsList) => {
           estado = 'abierta';
           en_vivo = true;
           const remaining = Math.floor((itemEnd - now) / 1000);
-          tiempo_restante_segundos = remaining > 0 ? remaining : 3 * 60;
+          tiempo_restante_segundos = remaining > 0 ? remaining : 5 * 60;
         } else if (idx < activeIndex) {
           estado = 'cerrada';
           is_closed = true;
@@ -165,7 +170,7 @@ export const mapUiAuctions = (auctionsList) => {
           is_locked = true;
         }
       } else {
-        // Parent subasta is not active (either scheduled in the future or closed)
+        // Subasta no activa
         if (now < subastaStart && estado !== 'cerrada') {
           estado = 'programada';
         } else {
@@ -204,7 +209,7 @@ const mapDbItemToUi = (dbItem) => {
     : 'Nadie';
 
   const fotosList = product.fotos || [];
-  let imageUrl = 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=600&q=80';
+  let imageUrl = 'https://via.placeholder.com/600x400/E0E0E0/808080?text=Sin+Imagen';
   if (fotosList.length > 0) {
     imageUrl = apiService.parseLegacyBytea(fotosList[0].foto) || imageUrl;
   }
@@ -224,13 +229,23 @@ const mapDbItemToUi = (dbItem) => {
   const docOrigen = prodDet?.documento_origen || null;
   const moneda = prodDet?.moneda || 'ARS';
 
-  let endsAtStr = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-  if (subasta.fecha && subasta.hora) {
+  let endsAtStr = dbItem.calculated_ends_at || new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+  if (!dbItem.calculated_ends_at && subasta.fecha && subasta.hora) {
     endsAtStr = parseDateSafely(subasta.fecha, subasta.hora).toISOString();
   }
 
-  let uiEstado = subasta.estado || 'abierta';
-  if (uiEstado === 'carrada') {
+  let uiEstado = subasta.estado;
+  if (!uiEstado) {
+    const notStarted = isSubastaNotStarted(subasta.fecha, subasta.hora);
+    const isClosed = isSubastaClosed(subasta.fecha, subasta.hora);
+    if (notStarted) {
+      uiEstado = 'programada';
+    } else if (isClosed) {
+      uiEstado = 'cerrada';
+    } else {
+      uiEstado = 'abierta';
+    }
+  } else if (uiEstado === 'carrada') {
     const notStarted = isSubastaNotStarted(subasta.fecha, subasta.hora);
     uiEstado = notStarted ? 'programada' : 'cerrada';
   }
@@ -289,7 +304,7 @@ let mockAuctions = [
       identificador: 104,
       titulo: 'Reloj Omega Seamaster Vintage 1965',
       descripcion: 'Omega Seamaster Vintage 1965. Caja de acero inoxidable, dial plateado con manecillas doradas, correa de cuero negro. Movimiento automático calibre 562 en excelente estado de funcionamiento.',
-      image_url: 'https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?auto=format&fit=crop&w=600&q=80',
+      image_url: 'https://via.placeholder.com/600x400/E0E0E0/808080?text=Sin+Imagen',
       duenio_id: 3,
       seller_name: 'Anticuario Madrid',
       historia: {
@@ -316,7 +331,7 @@ let mockAuctions = [
       identificador: 101,
       titulo: 'MacBook Pro 16" M3 Max',
       descripcion: '16-inch MacBook Pro, M3 Max chip with 16‑core CPU and 40‑core GPU, 48GB Unified Memory, 1TB SSD. Space Black. Like new in box.',
-      image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80',
+      image_url: 'https://via.placeholder.com/600x400/E0E0E0/808080?text=Sin+Imagen',
       duenio_id: 8,
       seller_name: 'Alex Tech Inc.',
       historia: {
@@ -344,7 +359,7 @@ let mockAuctions = [
       identificador: 102,
       titulo: 'Rolex Submariner Date Gold',
       descripcion: 'Oyster, 41 mm, yellow gold. Blue dial and Cerachrom bezel. Excellent condition, includes certificate of authenticity and box.',
-      image_url: 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&w=600&q=80',
+      image_url: 'https://via.placeholder.com/600x400/E0E0E0/808080?text=Sin+Imagen',
       duenio_id: 12,
       seller_name: 'Gems & Time LLC',
       moneda: 'USD',
@@ -372,7 +387,7 @@ let mockAuctions = [
       identificador: 103,
       titulo: 'Porsche 911 GT3 RS (Scale 1:8)',
       descripcion: 'Lego Technic Porsche 911 GT3 RS. Fully assembled with original box, manuals, and spare parts. Pristine collection item.',
-      image_url: 'https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&w=600&q=80',
+      image_url: 'https://via.placeholder.com/600x400/E0E0E0/808080?text=Sin+Imagen',
       duenio_id: 3,
       seller_name: 'BlockCollector',
       historia: {
@@ -478,8 +493,8 @@ export const supabaseService = {
       }
 
       const openItems = (data || []).filter(item => {
-        const subasta = item.catalogo?.subastas || {};
-        return subasta.estado === 'abierta' || subasta.estado === 'carrada';
+        const subasta = getSubastaFromItem(item) || {};
+        return subasta.estado !== 'cerrada' && subasta.estado !== 'carrada';
       });
 
       if (openItems.length === 0) {
@@ -487,11 +502,11 @@ export const supabaseService = {
         return { data: [], error: null };
       }
 
-      // Check for expired items on-the-fly and auto-finalize them
+      // Finalizar artículos expirados
       const nowVal = new Date();
       const subastaGroups = {};
       openItems.forEach(item => {
-        const subId = item.catalogo?.subastas?.identificador || 'default';
+        const subId = getSubastaFromItem(item)?.identificador || 'default';
         if (!subastaGroups[subId]) subastaGroups[subId] = [];
         subastaGroups[subId].push(item);
       });
@@ -500,21 +515,30 @@ export const supabaseService = {
       for (const subId of Object.keys(subastaGroups)) {
         const itemsGroup = subastaGroups[subId].sort((a, b) => a.identificador - b.identificador);
         const activeIdx = itemsGroup.findIndex(item => item.subastado === 'no');
+        
+        let subastaStart = new Date();
+        if (itemsGroup.length > 0) {
+          const firstItem = itemsGroup[0];
+          let subRef = getSubastaFromItem(firstItem);
+          
+          if (subRef?.fecha && subRef?.hora) {
+            subastaStart = parseDateSafely(subRef.fecha, subRef.hora);
+          }
+        }
+
+        itemsGroup.forEach((item, index) => {
+          const itemEnd = new Date(+subastaStart + (index + 1) * 5 * 60 * 1000);
+          item.calculated_ends_at = itemEnd.toISOString();
+        });
+
         if (activeIdx !== -1) {
           const activeItem = itemsGroup[activeIdx];
-          let subastaStart = parseDateSafely(activeItem.catalogo?.subastas?.fecha, activeItem.catalogo?.subastas?.hora);
-          
-          // If the subasta is open but scheduled in the future, anchor active item countdown to nowVal
-          if (activeItem.catalogo?.subastas?.estado === 'abierta' && nowVal < subastaStart) {
-            subastaStart = new Date(+nowVal - activeIdx * 3 * 60 * 1000);
-          }
-
-          const itemEnd = new Date(+subastaStart + (activeIdx + 1) * 3 * 60 * 1000); // 3 minutes per item
+          const itemEnd = new Date(activeItem.calculated_ends_at);
           if (nowVal >= itemEnd) {
-            console.log(`[SupabaseService] Auto-finalizing expired item ${activeItem.identificador} (time limit 3 minutes elapsed)`);
+            console.log(`[SupabaseService] Auto-finalizing expired item ${activeItem.identificador} (time limit 5 minutes elapsed)`);
             await supabaseService.autoFinalizeItem(
               activeItem.identificador,
-              activeItem.catalogo?.subastas?.identificador,
+              getSubastaFromItem(activeItem)?.identificador,
               activeItem.producto?.duenio,
               activeItem.producto?.identificador
             );
@@ -527,38 +551,47 @@ export const supabaseService = {
         return supabaseService.getActiveAuctions();
       }
 
-      // Fetch only the first photo for each active product in parallel to avoid downloading massive payloads
       const productIds = openItems.map(item => item.producto?.identificador).filter(Boolean);
+      const uniqueProductIds = [...new Set(productIds)];
       const firstPhotos = {};
-      if (productIds.length > 0) {
+      
+      if (uniqueProductIds.length > 0) {
         try {
-          const photosPromises = productIds.map(async (prodId) => {
-            const { data, error } = await supabase
-              .from('fotos')
-              .select('producto, foto')
-              .eq('producto', prodId)
-              .order('identificador', { ascending: true })
-              .limit(1);
-            if (error) {
-              console.error(`[SupabaseService] Error fetching photo for product ${prodId}:`, error);
-              return null;
-            }
-            return data && data.length > 0 ? data[0] : null;
-          });
+          // Obtener fotos
+          const { data: allIds, error: idsErr } = await supabase
+            .from('fotos')
+            .select('identificador, producto')
+            .in('producto', uniqueProductIds)
+            .order('identificador', { ascending: true });
 
-          const photosDataResults = await Promise.all(photosPromises);
-          const photosData = photosDataResults.filter(Boolean);
-          
-          if (photosData) {
-            photosData.forEach(item => {
-              if (!firstPhotos[item.producto]) {
-                firstPhotos[item.producto] = [];
+          if (!idsErr && allIds && allIds.length > 0) {
+            const firstIds = [];
+            const seenProds = new Set();
+            for (const row of allIds) {
+              if (!seenProds.has(row.producto)) {
+                firstIds.push(row.identificador);
+                seenProds.add(row.producto);
               }
-              firstPhotos[item.producto].push(item);
-            });
+            }
+
+            if (firstIds.length > 0) {
+              const { data: photosData, error: photosErr } = await supabase
+                .from('fotos')
+                .select('producto, foto')
+                .in('identificador', firstIds);
+              
+              if (!photosErr && photosData) {
+                for (const item of photosData) {
+                  if (!firstPhotos[item.producto]) {
+                    firstPhotos[item.producto] = [];
+                  }
+                  firstPhotos[item.producto].push(item);
+                }
+              }
+            }
           }
         } catch (photoErr) {
-          console.warn('[SupabaseService] Error fetching photos separately:', photoErr.message);
+          console.warn('[SupabaseService] Error fetching photos:', photoErr.message);
         }
       }
 
@@ -586,18 +619,28 @@ export const supabaseService = {
       return { data: [], error: null };
     }
     try {
-      const { data, error } = await supabase
+      // Cargar fotos
+      const { data: phData, error: phErr } = await supabase
         .from('fotos')
-        .select('foto')
+        .select('identificador, foto')
         .eq('producto', productId)
         .order('identificador', { ascending: true });
       
-      if (error) throw error;
-      
-      const images = (data || []).map(f => apiService.parseLegacyBytea(f.foto)).filter(Boolean);
+      if (phErr) throw phErr;
+
+      const images = [];
+      if (phData) {
+        for (const row of phData) {
+          if (row.foto) {
+            const parsed = apiService.parseLegacyBytea(row.foto);
+            if (parsed) images.push(parsed);
+          }
+        }
+      }
+
       return { data: images, error: null };
     } catch (e) {
-      console.warn('[SupabaseService] Error fetching product photos:', e.message);
+      console.warn('[SupabaseService] Error fetching product photos ids:', e.message);
       return { data: [], error: e };
     }
   },
@@ -666,7 +709,7 @@ export const supabaseService = {
 
     const clienteId = profile.identificador;
 
-    // Verificar medios de pago y multas en PARALELO para reducir latencia
+    // Verificar medios de pago y multas
     try {
       const [paymentMethods, fines] = await Promise.all([
         apiService.getPaymentMethods(clienteId),
@@ -708,7 +751,7 @@ export const supabaseService = {
           return { error: 'No se pudo encontrar el artículo de catálogo.' };
         }
         const dbItem = dbItems[0];
-        auctionCategory = dbItem.catalogo?.subastas?.categoria || 'comun';
+        auctionCategory = getSubastaFromItem(dbItem)?.categoria || 'comun';
       } catch (err) {
         return { error: 'Error al verificar la categoría de la subasta.' };
       }
@@ -778,8 +821,9 @@ export const supabaseService = {
       }
 
       const dbItem = dbItems[0];
-      const subastaId = dbItem.catalogo?.subastas?.identificador;
+      const subastaId = getSubastaFromItem(dbItem)?.identificador;
 
+      console.log('[placeBid] Buscando asistente...', { clienteId, subastaId });
       const { data: assistantData, error: assistantErr } = await supabase
         .from('asistentes')
         .select('identificador')
@@ -790,21 +834,26 @@ export const supabaseService = {
       if (!assistantErr && assistantData && assistantData.length > 0) {
         asistenteId = assistantData[0].identificador;
       } else {
+        console.log('[placeBid] Creando asistente...');
         const { data: newAsistente, error: createAsistenteErr } = await supabase
           .from('asistentes')
           .insert({
-            numeropostor: 25,
+            numeropostor: Math.floor(Math.random() * 1000) + 1,
             cliente: clienteId,
             subasta: subastaId
           })
           .select()
           .single();
 
-        if (createAsistenteErr) throw createAsistenteErr;
+        if (createAsistenteErr) {
+          console.error('[placeBid] Error createAsistente:', createAsistenteErr);
+          throw createAsistenteErr;
+        }
+        if (!newAsistente) throw new Error("newAsistente es null");
         asistenteId = newAsistente.identificador;
       }
 
-      // Insert into pujos
+      console.log('[placeBid] Insertando pujo...', { asistenteId, itemId, amount });
       const { data: newBid, error: insertBidErr } = await supabase
         .from('pujos')
         .insert({
@@ -816,9 +865,13 @@ export const supabaseService = {
         .select()
         .single();
 
-      if (insertBidErr) throw insertBidErr;
+      if (insertBidErr) {
+        console.error('[placeBid] Error insertBid:', insertBidErr);
+        throw insertBidErr;
+      }
+      if (!newBid) throw new Error("newBid es null");
 
-      // Insert into pujos_detalles
+      console.log('[placeBid] Insertando pujos_detalles...', newBid.identificador);
       const { error: insertDetErr } = await supabase
         .from('pujos_detalles')
         .insert({
@@ -826,12 +879,14 @@ export const supabaseService = {
         });
 
       if (insertDetErr) {
-        // Rollback insert in pujos if details fail
+        console.error('[placeBid] Error insertDet:', insertDetErr);
+        // Revertir si falla
         await supabase.from('pujos').delete().eq('identificador', newBid.identificador);
         throw insertDetErr;
       }
 
-      const { data: updatedDbItems } = await supabase
+      console.log('[placeBid] Buscando updatedDbItems...');
+      const { data: updatedDbItems, error: updateErr } = await supabase
         .from('itemscatalogo')
         .select(`
           identificador,
@@ -854,9 +909,7 @@ export const supabaseService = {
               polizacombinada,
               importe
             ),
-            fotos (
-              foto
-            ),
+
             productos_detalles (
               moneda,
               informacion_historica,
@@ -885,6 +938,14 @@ export const supabaseService = {
           )
         `)
         .eq('identificador', itemId);
+
+      if (updateErr) {
+        console.error('[placeBid] Error fetching updatedDbItems:', updateErr);
+        throw updateErr;
+      }
+      if (!updatedDbItems || updatedDbItems.length === 0) {
+        throw new Error("No se pudo obtener el estado actualizado de la subasta.");
+      }
 
       const updatedUiItem = mapDbItemToUi(updatedDbItems[0]);
 
@@ -948,6 +1009,12 @@ export const supabaseService = {
             console.error('[SupabaseService] Realtime parsing failed:', e);
           }
         })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'itemscatalogo' }, (payload) => {
+          callback({ isRefreshRequired: true, source: 'itemscatalogo' });
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'subastas' }, (payload) => {
+          callback({ isRefreshRequired: true, source: 'subastas' });
+        })
         .subscribe();
     }
 
@@ -959,12 +1026,51 @@ export const supabaseService = {
     };
   },
 
+  subscribeToNotifications(userId, callback) {
+    if (!isSupabaseConfigured() || !userId) {
+      return () => {};
+    }
+    
+    console.log('[SupabaseService] Subscribing to notifications for user:', userId);
+    const subscription = supabase
+      .channel(`public:notificaciones:cliente:${userId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notificaciones', 
+          filter: `cliente=eq.${userId}` 
+        },
+        (payload) => {
+          console.log('[SupabaseService] Realtime notification received:', payload);
+          if (payload.new) {
+            callback(payload.new);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[SupabaseService] Unsubscribing from notifications for user:', userId);
+      supabase.removeChannel(subscription);
+    };
+  },
+
   _notifyListeners(payload) {
     bidListeners.forEach(callback => callback(payload));
   },
 
   async autoFinalizeItem(catalogItemId, subastaId, productDuenioId, productId) {
     if (!isSupabaseConfigured()) return { success: true };
+    
+    // Evitar ejecuciones duplicadas
+    if (global.finalizingItems && global.finalizingItems.has(catalogItemId)) {
+      return { success: true, alreadyFinalized: true };
+    }
+    global.finalizingItems = global.finalizingItems || new Set();
+    global.finalizingItems.add(catalogItemId);
+
     try {
       const checkAndCloseSubasta = async (subId) => {
         try {
@@ -1075,6 +1181,20 @@ export const supabaseService = {
           comision: commissionAmt
         });
 
+      let subLocation = 'nuestro depósito central';
+      try {
+        const { data: subData } = await supabase
+          .from('subastas')
+          .select('ubicacion')
+          .eq('identificador', subastaId)
+          .single();
+        if (subData?.ubicacion) {
+          subLocation = subData.ubicacion;
+        }
+      } catch (subErr) {
+        console.warn('[autoFinalizeItem] Could not fetch subasta location:', subErr.message);
+      }
+
       const { data: pms, error: pmErr } = await supabase
         .from('mediosdepago')
         .select('*')
@@ -1097,20 +1217,22 @@ export const supabaseService = {
             .from('notificaciones')
             .insert({
               cliente: winner.asistentes.cliente,
-              titulo: '¡Subasta Ganada!',
-              mensaje: `Has resultado ganador del artículo con tu oferta más alta de $${bidAmount}. Se debitaron $${bidAmount} de tu medio de pago.`,
-              leido: 'no'
+              titulo: '¡Artículo a tu nombre!',
+              mensaje: `¡Felicidades! Has resultado ganador de la subasta con tu oferta de $${bidAmount.toLocaleString('es-AR')}. El artículo ha pasado a estar a tu nombre y se debitó el monto de tu medio de pago predeterminado. Puedes pasar a retirarlo por: ${subLocation}. O si lo prefieres, realiza el pago del envío y te lo llevamos a tu domicilio.`,
+              leido: 'no',
+              fechacreacion: new Date().toISOString()
             });
         } else {
-          const fineAmt = bidAmount * 0.20;
+          const fineAmt = bidAmount * 0.10;
 
           await supabase
             .from('multas')
             .insert({
               cliente: winner.asistentes.cliente,
               monto: fineAmt,
-              descripcion: `Multa penalización 20% por ofertar por encima del límite ($${bidAmount} vs Límite $${currentLimit})`,
-              estado: 'pendiente'
+              descripcion: `Multa penalización 10% por ofertar por encima del límite ($${bidAmount} vs Límite $${currentLimit})`,
+              estado: 'pendiente',
+              fechacreacion: new Date().toISOString()
             });
 
           await supabase
@@ -1119,16 +1241,18 @@ export const supabaseService = {
               cliente: winner.asistentes.cliente,
               monto: bidAmount,
               descripcion: `Monto total de adjudicación pendiente de pago - Artículo #${catalogItemId}`,
-              estado: 'pendiente'
+              estado: 'pendiente',
+              fechacreacion: new Date().toISOString()
             });
 
           await supabase
             .from('notificaciones')
             .insert({
               cliente: winner.asistentes.cliente,
-              titulo: '¡Adjudicación Excedida y Multa!',
-              mensaje: `Ganaste el artículo por $${bidAmount}, superando tu límite de $${currentLimit}. Se aplicó una multa del 20% ($${fineAmt}). Debes regularizar ambos montos para volver a participar.`,
-              leido: 'no'
+              titulo: '¡Artículo adjudicado!',
+              mensaje: `¡Felicidades! Ganaste el artículo con tu oferta de $${bidAmount.toLocaleString('es-AR')}. Debido a que superó tu límite disponible de $${currentLimit.toLocaleString('es-AR')}, se aplicó una multa del 10% ($${fineAmt.toLocaleString('es-AR')}). El artículo ya está a tu nombre. Para retirarlo por ${subLocation} (o solicitar envío a domicilio pagando la entrega), primero debes regularizar el pago de la adjudicación y la multa desde tu Perfil.`,
+              leido: 'no',
+              fechacreacion: new Date().toISOString()
             });
         }
       }
@@ -1136,6 +1260,8 @@ export const supabaseService = {
     } catch (err) {
       console.error('[SupabaseService] autoFinalizeItem error:', err.message);
       return { error: err.message };
+    } finally {
+      global.finalizingItems.delete(catalogItemId);
     }
   },
 
@@ -1264,24 +1390,39 @@ export const supabaseService = {
       const firstPhotos = {};
       if (productIds.length > 0) {
         try {
-          const photosPromises = productIds.map(async (prodId) => {
-            const { data: phData, error: phErr } = await supabase
-              .from('fotos')
-              .select('producto, foto')
-              .eq('producto', prodId)
-              .order('identificador', { ascending: true })
-              .limit(1);
-            if (phErr) return null;
-            return phData && phData.length > 0 ? phData[0] : null;
-          });
+          // Obtener fotos
+          const { data: allIds, error: idsErr } = await supabase
+            .from('fotos')
+            .select('identificador, producto')
+            .in('producto', productIds)
+            .order('identificador', { ascending: true });
 
-          const photosResults = await Promise.all(photosPromises);
-          photosResults.filter(Boolean).forEach(ph => {
-            if (!firstPhotos[ph.producto]) {
-              firstPhotos[ph.producto] = [];
+          if (!idsErr && allIds && allIds.length > 0) {
+            const firstIds = [];
+            const seenProds = new Set();
+            for (const row of allIds) {
+              if (!seenProds.has(row.producto)) {
+                firstIds.push(row.identificador);
+                seenProds.add(row.producto);
+              }
             }
-            firstPhotos[ph.producto].push(ph);
-          });
+
+            if (firstIds.length > 0) {
+              const { data: photosData, error: photosErr } = await supabase
+                .from('fotos')
+                .select('producto, foto')
+                .in('identificador', firstIds);
+              
+              if (!photosErr && photosData) {
+                for (const item of photosData) {
+                  if (!firstPhotos[item.producto]) {
+                    firstPhotos[item.producto] = [];
+                  }
+                  firstPhotos[item.producto].push(item);
+                }
+              }
+            }
+          }
         } catch (photoErr) {
           console.warn('[SupabaseService] getUserWonAuctions photos error:', photoErr.message);
         }

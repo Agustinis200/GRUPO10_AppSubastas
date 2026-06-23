@@ -30,9 +30,15 @@ export default function SubastasScreen({
     { key: 'platino', label: 'Platino' }
   ];
 
+  const checkIsClosed = (item) => {
+    return (item.estado !== 'abierta' && (item.estado === 'cerrada' || item.estado === 'carrada' || isSubastaClosed(item.fecha, item.hora))) || item.todos_subastados;
+  };
+
+  const activeSubastas = subastas.filter(s => !checkIsClosed(s));
+
   const displayedSubastas = selectedSubastaCategory === 'Todos'
-    ? subastas
-    : subastas.filter(s => s.categoria && s.categoria.toLowerCase() === selectedSubastaCategory.toLowerCase());
+    ? activeSubastas
+    : activeSubastas.filter(s => s.categoria && s.categoria.toLowerCase() === selectedSubastaCategory.toLowerCase());
 
   return (
     <View style={{ flex: 1 }}>
@@ -94,6 +100,9 @@ export default function SubastasScreen({
               data={displayedSubastas}
               keyExtractor={(item) => item.identificador.toString()}
               contentContainerStyle={styles.listContainer}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />
+              }
               renderItem={({ item }) => (
                 <TouchableOpacity 
                   style={styles.subastaCatalogCard}
@@ -102,10 +111,12 @@ export default function SubastasScreen({
                   <View style={styles.subastaCatalogHeader}>
                     <View style={styles.subastaCatalogDateRow}>
                       <Feather name="calendar" size={14} color={COLORS.lightGray200} style={{ marginRight: 4 }} />
-                      <Text style={styles.subastaCatalogDateText}>{item.fecha} a las {item.hora}</Text>
+                      <Text style={styles.subastaCatalogDateText}>
+                        {item.fecha ? `${item.fecha} a las ${item.hora || '18:00'}` : 'Fecha a confirmar'}
+                      </Text>
                     </View>
                     {(() => {
-                      const isClosed = (item.estado !== 'abierta' && (item.estado === 'cerrada' || item.estado === 'carrada' || isSubastaClosed(item.fecha, item.hora))) || item.todos_subastados;
+                      const isClosed = checkIsClosed(item);
                       const notStarted = !isClosed && item.estado !== 'abierta' && isSubastaNotStarted(item.fecha, item.hora);
                       if (notStarted) {
                         return (

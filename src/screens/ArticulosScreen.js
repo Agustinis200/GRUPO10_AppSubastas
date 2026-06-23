@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, TextInput, Alert, RefreshControl } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../styles/theme';
 import { apiService } from '../api/apiService';
@@ -88,7 +88,18 @@ export default function ArticulosScreen({
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loadingMyProducts}
+            onRefresh={refreshProducts}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
         
         {/* Coverage Banner (Orange Outline Capsule) */}
         <View style={styles.coverageBanner}>
@@ -119,7 +130,7 @@ export default function ArticulosScreen({
           </View>
         ) : (
           myProducts.map((item) => {
-            const isSubastado = item.disponible === 'si';
+            const isSubastado = item.disponible === 'si' && item.subastaInfo != null;
             const wasSubastado = item.subastado === 'si';
             const estado = item.propuesta_estado || 'en_revision';
 
@@ -166,7 +177,7 @@ export default function ArticulosScreen({
             } else if (estado === 'aceptada') {
               badgeColor = 'rgba(16, 185, 129, 0.15)';
               badgeTextColor = '#10B981';
-              badgeText = 'Propuesta Aceptada';
+              badgeText = 'En Espera de Subasta';
               badgeIcon = 'check-circle';
             } else if (estado === 'rechazada') {
               badgeColor = 'rgba(239, 68, 68, 0.15)';
@@ -197,7 +208,7 @@ export default function ArticulosScreen({
                 </View>
 
                 {/* Negotiation Box */}
-                {!isSubastado && (
+                {!isSubastado && !wasSubastado && (
                   <View style={styles.negotiationBox}>
                     {estado === 'en_revision' && (
                       <Text style={{ fontSize: 12, color: '#8E8E93', fontStyle: 'italic', lineHeight: 16 }}>
@@ -350,7 +361,7 @@ export default function ArticulosScreen({
 
                     {estado === 'aceptada' && (
                       <View>
-                        <Text style={[styles.negotiationTitle, { color: '#10B981' }]}>Términos Aceptados (Listo para Subasta):</Text>
+                        <Text style={[styles.negotiationTitle, { color: '#10B981' }]}>En Espera de Asignación a Subasta:</Text>
                         <View style={styles.negotiationRow}>
                           <Text style={styles.negotiationLabel}>Precio Base:</Text>
                           <Text style={styles.negotiationValue}>
@@ -364,60 +375,6 @@ export default function ArticulosScreen({
                           </Text>
                         </View>
 
-                        {/* Datos de la póliza de seguro */}
-                        {item.seguro && (
-                          <View style={styles.policyCard}>
-                            <View style={styles.policyHeader}>
-                              <Feather name="shield" size={13} color="#0A5CFF" style={{ marginRight: 6 }} />
-                              <Text style={styles.policyTitle}>Póliza de Seguro</Text>
-                            </View>
-
-                            <View style={styles.policyRow}>
-                              <Text style={styles.policyLabel}>Nº de Póliza:</Text>
-                              <Text style={styles.policyValue}>{item.seguro.nroPoliza || item.seguro.nropoliza || '—'}</Text>
-                            </View>
-
-                            <View style={styles.policyRow}>
-                              <Text style={styles.policyLabel}>Compañía:</Text>
-                              <Text style={styles.policyValue}>{item.seguro.compania || '—'}</Text>
-                            </View>
-
-                            {item.seguro.importe != null && (
-                              <View style={styles.policyRow}>
-                                <Text style={styles.policyLabel}>Importe Asegurado:</Text>
-                                <Text style={[styles.policyValue, { color: '#10B981', fontWeight: '700' }]}>
-                                  $ {Number(item.seguro.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                </Text>
-                              </View>
-                            )}
-
-                            {item.seguro.polizaCombinada != null && (
-                              <View style={styles.policyRow}>
-                                <Text style={styles.policyLabel}>Póliza Combinada:</Text>
-                                <Text style={styles.policyValue}>{(item.seguro.polizaCombinada || item.seguro.polizacombinada || 'no').toUpperCase()}</Text>
-                              </View>
-                            )}
-
-                            {item.seguro.direccion && (
-                              <View style={[styles.policyRow, { marginTop: 4 }]}>
-                                <Feather name="map-pin" size={11} color="#636366" style={{ marginRight: 4, marginTop: 1 }} />
-                                <Text style={[styles.policyLabel, { flex: 1 }]}>{item.seguro.direccion}</Text>
-                              </View>
-                            )}
-
-                            <View style={[styles.policyRow, { marginTop: 2 }]}>
-                              <Feather name="mail" size={11} color="#636366" style={{ marginRight: 4, marginTop: 1 }} />
-                              <Text style={[styles.policyLabel, { flex: 1 }]}>{item.seguro.email || 'contacto@segurosinternacionales.com'}</Text>
-                            </View>
-
-                            {item.seguro.telefono && (
-                              <View style={styles.policyPhoneRow}>
-                                <Feather name="phone" size={12} color="#0A5CFF" style={{ marginRight: 6 }} />
-                                <Text style={styles.policyPhone}>{item.seguro.telefono}</Text>
-                              </View>
-                            )}
-                          </View>
-                        )}
                       </View>
                     )}
 

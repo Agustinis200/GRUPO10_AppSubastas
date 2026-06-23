@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
+  Text,
+  ScrollView,
+  TouchableOpacity,
   ActivityIndicator, 
   StatusBar,
   Alert,
@@ -12,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { apiService } from './src/api/apiService';
 import { supabaseService } from './src/api/supabaseService';
+import { Feather } from '@expo/vector-icons';
 
 import AuctionDetailModal from './src/components/AuctionDetailModal';
 import AuthScreen from './src/screens/AuthScreen';
@@ -19,7 +23,7 @@ import { COLORS, FONTS, SHADOWS } from './src/styles/theme';
 import SplashLoader from './src/components/SplashLoader';
 import NotificationCenterModal from './src/components/NotificationCenterModal';
 
-// Modular navigation & screens
+// Navegación modular y pantallas
 import Navbar from './src/components/Navbar';
 import HomeScreen from './src/screens/HomeScreen';
 import SubastasScreen from './src/screens/SubastasScreen';
@@ -54,7 +58,7 @@ export default function App() {
   const [userBalance, setUserBalance] = useState(250000); 
   const [stats, setStats] = useState({ offers: 0, uploaded: 0, won: 0 });
 
-  // Upload screen form states
+  // Estados del formulario de subida
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDesc, setUploadDesc] = useState('');
   const [uploadPhotos, setUploadPhotos] = useState([]); 
@@ -65,7 +69,7 @@ export default function App() {
   const [photoPickerMode, setPhotoPickerMode] = useState('product'); 
   const [uploadMoneda, setUploadMoneda] = useState('ARS'); 
   
-  // Historical info optional fields
+  // Campos opcionales de información histórica
   const [hasHistoricalInfo, setHasHistoricalInfo] = useState(false);
   const [uploadArtista, setUploadArtista] = useState('');
   const [uploadAnio, setUploadAnio] = useState('');
@@ -110,7 +114,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // checkAuthentication will call fetchData and fetchSubastas internally
+    // checkAuthentication cargará fetchData y fetchSubastas
     checkAuthentication();
     checkConnection();
   }, []);
@@ -119,7 +123,7 @@ export default function App() {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
-        // Load profile, auctions and subastas in parallel
+        // Cargar perfil, artículos y subastas en paralelo
         const [profile] = await Promise.all([
           apiService.getProfile(),
           fetchData(),
@@ -128,14 +132,14 @@ export default function App() {
         setUserProfile(profile);
         setIsAuthenticated(true);
       } else {
-        // No session — still load public auctions
+        // Sin sesión — cargar artículos públicos
         await Promise.all([fetchData(), fetchSubastas()]);
         setIsAuthenticated(false);
         setUserProfile(null);
       }
     } catch (e) {
       console.warn('[App] Session check failed, redirecting to login:', e);
-      // Still load public data on error
+      // Cargar datos públicos en caso de error
       await Promise.all([fetchData(), fetchSubastas()]).catch(() => {});
       setIsAuthenticated(false);
       setUserProfile(null);
@@ -206,9 +210,9 @@ export default function App() {
     if (isAuthenticated) {
       fetchMyProductsAndStats();
     }
-  }, [isAuthenticated]); // Only run on auth state change, not on every tab/auctions update
+  }, [isAuthenticated]); // Ejecutar solo al cambiar la autenticación
 
-  // Auto-refresh relevant data when active tab changes
+  // Auto-refrescar datos al cambiar de pestaña
   useEffect(() => {
     if (activeTab === 'home') {
       if (auctions.length === 0) fetchData();
@@ -220,17 +224,19 @@ export default function App() {
       if (subastas.length === 0) fetchSubastas();
       if (auctions.length === 0) fetchData();
     } else if (activeTab === 'articulos') {
-      fetchMyProductsAndStats();
+      if (myProducts.length === 0 && wonAuctions.length === 0) {
+        fetchMyProductsAndStats();
+      }
     } else if (activeTab === 'perfil') {
       if (isAuthenticated && userProfile) {
-        fetchData();
-        fetchUserData();
-        fetchMyProductsAndStats();
+        if (auctions.length === 0) fetchData();
+        if (!paymentMethods || paymentMethods.length === 0) fetchUserData();
+        if (myProducts.length === 0 && wonAuctions.length === 0) fetchMyProductsAndStats();
       }
     }
   }, [activeTab, isAuthenticated, isGuest]);
 
-  // Keep stats.offers in sync with auctions changes
+  // Sincronizar estadísticas de ofertas con los artículos
   useEffect(() => {
     if (isAuthenticated && userProfile) {
       const myOffersCount = auctions.filter(a => 
@@ -249,8 +255,14 @@ export default function App() {
     if (isAuthenticated) {
       const unsubscribe = supabaseService.subscribeToBids((payload) => {
         console.log('[App] Realtime event received:', payload);
-        setAuctions(prevAuctions => 
-          prevAuctions.map(item => {
+        
+        if (payload.isRefreshRequired) {
+          fetchData();
+          return;
+        }
+
+        setAuctions(prevAuctions => {
+          const updatedAuctions = prevAuctions.map(item => {
             if (item.identificador === payload.auctionId) {
               return {
                 ...item,
@@ -260,8 +272,22 @@ export default function App() {
               };
             }
             return item;
-          })
-        );
+          });
+          return updatedAuctions;
+        });
+
+        // Sincronizar selectedAuction para el modal abierto
+        setSelectedAuction(prev => {
+          if (prev && prev.identificador === payload.auctionId) {
+            return {
+              ...prev,
+              precio_actual: payload.precio_actual,
+              bid_count: payload.bid_count,
+              highest_bidder: payload.highest_bidder
+            };
+          }
+          return prev;
+        });
       });
       return () => {
         if (typeof unsubscribe === 'function') unsubscribe();
@@ -269,19 +295,39 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (isAuthenticated && userProfile) {
+      const unsubscribeNotifs = supabaseService.subscribeToNotifications(
+        userProfile.identificador,
+        (notif) => {
+          console.log('[App] New notification received via realtime:', notif);
+          Alert.alert(
+            notif.titulo || 'Notificación',
+            notif.mensaje || '',
+            [{ text: 'Entendido', onPress: () => fetchUserData() }]
+          );
+          fetchUserData();
+        }
+      );
+      return () => {
+        if (typeof unsubscribeNotifs === 'function') unsubscribeNotifs();
+      };
+    }
+  }, [isAuthenticated, userProfile]);
+
   const fetchUserData = async () => {
     if (!userProfile) return;
     try {
       const uId = userProfile.identificador;
       
-      // Run all user data queries IN PARALLEL — replaces 4 sequential network calls
+      // Obtener datos del usuario
       const [pm, fn, nt] = await Promise.all([
         apiService.getPaymentMethods(uId),
         apiService.getUserFines(uId),
         apiService.getUserNotifications(uId),
       ]);
 
-      // Sort payment methods stably by identificador so they never change order/places
+      // Guardar medios de pago
       const sortedPm = pm ? [...pm].sort((a, b) => Number(a.identificador) - Number(b.identificador)) : [];
 
       setPaymentMethods(sortedPm);
@@ -304,12 +350,12 @@ export default function App() {
       const unread = (nt || []).filter(n => n.leido !== 'si').length;
       setUnreadNotifCount(unread);
 
-      // Revisor data can load separately, non-blocking
+      // Cargar datos de revisor si corresponde
       if (userProfile.cargo === 'Revisor Técnico') {
         fetchPendingRegistrations();
       }
       
-      // Update user products and statistics
+      // Actualizar productos y estadísticas
       fetchMyProductsAndStats();
     } catch (e) {
       console.warn('Error fetching user dashboard data:', e);
@@ -340,7 +386,9 @@ export default function App() {
             )
           `);
         if (!error && data) {
-          const processed = data.map(sub => {
+          const processed = data
+            .filter(sub => sub.estado !== 'cerrada' && sub.estado !== 'carrada')
+            .map(sub => {
             const items = [];
             if (sub.catalogos) {
               const catalogs = Array.isArray(sub.catalogos) ? sub.catalogos : [sub.catalogos];
@@ -492,12 +540,12 @@ export default function App() {
     }
   };
 
-  // Only re-fetch user data when auth state or profile changes — NOT on every tab switch
+  // Cargar datos de usuario al cambiar la autenticación
   useEffect(() => {
     if (isAuthenticated && userProfile) {
       fetchUserData();
     } else if (isGuest) {
-      // Guest: public data already loaded in checkAuthentication
+      // Invitado: datos ya cargados
     }
   }, [isAuthenticated, userProfile, isGuest]);
 
@@ -509,6 +557,24 @@ export default function App() {
     setLoading(true);
     const { data } = await supabaseService.getAuctions();
     setAuctions(data || []);
+    
+    // Sincronizar modal abierto con nuevos datos
+    setSelectedAuction(prev => {
+      if (!prev) return prev;
+      const fresh = (data || []).find(a => a.identificador === prev.identificador);
+      if (!fresh) return prev;
+      // Preservar fotos locales en el refresco
+      return {
+        ...fresh,
+        producto: {
+          ...fresh.producto,
+          fotos: prev.producto?.fotos || [],
+          images: prev.producto?.images || [],
+          image_url: prev.producto?.image_url || fresh.producto?.image_url
+        }
+      };
+    });
+
     setLoading(false);
   };
 
@@ -547,6 +613,25 @@ export default function App() {
     setFilteredAuctions(result);
   };
 
+  const handleGoToSubasta = (auctionItem) => {
+    let subastaRef = auctionItem.catalogo?.subastas;
+    if (Array.isArray(subastaRef)) {
+      subastaRef = subastaRef.length > 0 ? subastaRef[0] : null;
+    }
+    
+    if (subastaRef) {
+      const targetSubasta = subastas.find(s => s.identificador === subastaRef.identificador);
+      if (targetSubasta) {
+        setSelectedSubasta(targetSubasta);
+      } else {
+        setSelectedSubasta(subastaRef);
+      }
+      setActiveTab('subastas');
+    } else {
+      handleBidPress(auctionItem);
+    }
+  };
+
   const handleBidPress = async (auction) => {
     setSelectedAuction(auction);
     setModalVisible(true);
@@ -557,6 +642,7 @@ export default function App() {
         if (data && data.length > 0) {
           setSelectedAuction(prev => {
             if (!prev) return null;
+            if (prev.identificador !== auction.identificador) return prev;
             return {
               ...prev,
               producto: {
@@ -584,9 +670,33 @@ export default function App() {
 
   const handleBidSuccess = async (updatedAuction) => {
     setAuctions(prev => 
-      prev.map(item => item.identificador === updatedAuction.identificador ? updatedAuction : item)
+      prev.map(item => {
+        if (item.identificador === updatedAuction.identificador) {
+          // Preserve the original calculated ends_at and original producto (with photos) to prevent resetting
+          return {
+            ...updatedAuction,
+            ends_at: item.ends_at,
+            producto: {
+              ...updatedAuction.producto,
+              fotos: item.producto?.fotos || [],
+              images: item.producto?.images || [],
+              image_url: item.producto?.image_url || updatedAuction.producto?.image_url
+            }
+          };
+        }
+        return item;
+      })
     );
-    setSelectedAuction(updatedAuction);
+    setSelectedAuction(prev => ({
+      ...updatedAuction,
+      ends_at: prev?.ends_at || updatedAuction.ends_at,
+      producto: {
+        ...updatedAuction.producto,
+        fotos: prev?.producto?.fotos || [],
+        images: prev?.producto?.images || [],
+        image_url: prev?.producto?.image_url || updatedAuction.producto?.image_url
+      }
+    }));
   };
 
   const openPhotoSourceSelector = (mode) => {
@@ -630,7 +740,7 @@ export default function App() {
 
           const camResult = await ImagePicker.launchCameraAsync({
             allowsEditing: false,
-            quality: 0.5,
+            quality: 0.2,
             base64: true,
           });
 
@@ -681,7 +791,7 @@ export default function App() {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: 'images',
           allowsMultipleSelection: mode === 'product',
-          quality: 0.5,
+          quality: 0.2,
           base64: true,
         });
 
@@ -735,7 +845,7 @@ export default function App() {
           : null,
         documentoOrigenBase64: uploadDocPhoto ? uploadDocPhoto.base64 : null,
         moneda: uploadMoneda,
-        // Optional historical info fields
+        // Campos opcionales de información histórica
         artista: hasHistoricalInfo ? uploadArtista.trim() : null,
         periodo: hasHistoricalInfo ? uploadAnio.trim() : null,
         contextoHistorico: hasHistoricalInfo ? uploadContextoHist.trim() : null
@@ -744,7 +854,7 @@ export default function App() {
       await apiService.uploadProduct(payload);
       setSuccessMessage('¡Producto subido con éxito! Pendiente de aprobación.');
       
-      // Clear form
+      // Limpiar formulario
       setUploadTitle('');
       setUploadDesc('');
       setUploadPhotos([]);
@@ -757,9 +867,10 @@ export default function App() {
       setUploadAnio('');
       setUploadContextoHist('');
 
-      // Refresh data to show new subasta and items
+      // Refrescar datos para mostrar nueva subasta y artículos
       if (isAuthenticated && userProfile) {
         fetchUserData();
+        fetchMyProductsAndStats();
       }
       fetchData();
       fetchSubastas();
@@ -770,8 +881,92 @@ export default function App() {
     }
   };
 
+  // Verificar bloqueo por multas de más de 72 horas
+  const isBlockedByFines = isAuthenticated && (() => {
+    if (!userFines || userFines.length === 0) return false;
+    const now = new Date();
+    return userFines.some(fine => {
+      if (fine.estado !== 'pendiente') return false;
+      const createdDate = new Date(fine.fechacreacion || fine.created_at);
+      if (isNaN(createdDate.getTime())) return false;
+      const diffMs = now - createdDate;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours >= 72;
+    });
+  })();
+
   if (authLoading) {
     return <SplashLoader statusText="Iniciando PujaYa!..." />;
+  }
+
+  if (isBlockedByFines) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: '#12121E', justifyContent: 'center', padding: 24 }]}>
+        <StatusBar barStyle="light-content" backgroundColor="#12121E" />
+        <View style={styles.blockedContainer}>
+          <View style={styles.blockedHeader}>
+            <View style={styles.lockIconContainer}>
+              <Feather name="lock" size={40} color="#FF3B30" />
+            </View>
+            <Text style={styles.blockedTitle}>Cuenta Bloqueada</Text>
+            <Text style={styles.blockedSubtitle}>
+              Se ha superado el plazo de 72 horas para abonar tus multas pendientes. Debes regularizarlas para acceder a la aplicación.
+            </Text>
+          </View>
+
+          <ScrollView style={styles.blockedScroll} contentContainerStyle={{ paddingBottom: 16 }}>
+            {userFines.filter(f => f.estado === 'pendiente').map(fine => {
+              const createdDate = new Date(fine.fechacreacion || fine.created_at);
+              const formattedDate = isNaN(createdDate.getTime()) 
+                ? 'Fecha no disponible' 
+                : createdDate.toLocaleDateString('es-AR') + ' ' + createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return (
+                <View key={fine.identificador} style={styles.blockedFineCard}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={styles.blockedFineTitle} numberOfLines={1}>{fine.descripcion}</Text>
+                    <Text style={styles.blockedFineAmount}>${Number(fine.monto).toLocaleString('es-AR')}</Text>
+                  </View>
+                  <Text style={styles.blockedFineDate}>Emitida: {formattedDate}</Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.payBlockedFineButton}
+                    onPress={() => handlePayFine(fine.identificador, Number(fine.monto))}
+                  >
+                    <Text style={styles.payBlockedFineButtonText}>Pagar con Medio Predeterminado</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.blockedFooter}>
+            {activePaymentMethod ? (
+              <View style={styles.blockedPaymentBox}>
+                <Text style={styles.blockedPaymentLabel}>Medio de Pago Predeterminado:</Text>
+                <Text style={styles.blockedPaymentValue}>
+                  {activePaymentMethod.marca || 'Tarjeta'} - **** {activePaymentMethod.numerotarjeta?.slice(-4) || '1234'}
+                </Text>
+                <Text style={styles.blockedPaymentBalance}>
+                  Saldo Disponible: {activePaymentMethod.moneda === 'USD' ? 'u$s' : '$'} {Number(activePaymentMethod.monto).toLocaleString('es-AR')}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.blockedPaymentBox, { borderColor: '#FF3B30', backgroundColor: 'rgba(255, 59, 48, 0.05)' }]}>
+                <Text style={[styles.blockedPaymentLabel, { color: '#FF9500' }]}>Sin Medio de Pago Activo</Text>
+                <Text style={styles.blockedPaymentBalance}>
+                  No tienes un medio de pago predeterminado para saldar la deuda. Contacta a soporte para regularizar.
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.blockedLogoutButton} onPress={handleLogout}>
+              <Feather name="log-out" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.blockedLogoutButtonText}>Cerrar Sesión</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (!isAuthenticated && !isGuest) {
@@ -804,7 +999,7 @@ export default function App() {
             stats={stats}
             loading={loading}
             auctions={auctions}
-            onBidPress={handleBidPress}
+            onBidPress={handleGoToSubasta}
             onViewAllSubastas={() => setActiveTab('subastas')}
             isGuest={isGuest}
             paymentMethods={paymentMethods}
@@ -979,5 +1174,134 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-  }
+  },
+  blockedContainer: {
+    backgroundColor: '#1E1E2E',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#FF3B30',
+    padding: 20,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  blockedHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  lockIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  blockedTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  blockedSubtitle: {
+    color: '#A0A0B0',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  blockedScroll: {
+    maxHeight: 250,
+    marginBottom: 16,
+  },
+  blockedFineCard: {
+    backgroundColor: '#2A2A3E',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#3A3A5E',
+  },
+  blockedFineTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  blockedFineAmount: {
+    color: '#FF3B30',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  blockedFineDate: {
+    color: '#8E8E93',
+    fontSize: 11,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  payBlockedFineButton: {
+    backgroundColor: '#0A5CFF',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  payBlockedFineButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  blockedFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#2A2A3E',
+    paddingTop: 16,
+  },
+  blockedPaymentBox: {
+    backgroundColor: '#252538',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#3A3A5E',
+  },
+  blockedPaymentLabel: {
+    color: '#8E8E93',
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  blockedPaymentValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  blockedPaymentBalance: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  blockedLogoutButton: {
+    backgroundColor: '#E53E3E',
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  blockedLogoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
